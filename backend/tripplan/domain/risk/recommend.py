@@ -29,6 +29,22 @@ from .miles import RouteRiskSummary
 #: Prepend the No Travel tier to the ranking (D5).
 SAFETY_GATE_ENABLED = True
 
+#: Decimal places used when comparing average risk.
+#:
+#: Found by running the real pipeline: two options scored 1.08 and 1.09 average
+#: risk, and the ranking preferred the *slower* option on that 0.01 gap, reporting
+#: "0.01 lower average risk; 53m longer travel time". A gap that small is inside
+#: the noise of a handful of checkpoints, and letting it decide a safety
+#: recommendation is worse than useless. Rounding to one decimal makes
+#: statistically indistinguishable routes tie, so the ranking falls through to
+#: travel time -- the criterion that actually separates them.
+AVG_RISK_PRECISION = 1
+
+
+def comparable_avg_risk(value: float) -> float:
+    """Average risk rounded to the configured comparison precision."""
+    return round(value, AVG_RISK_PRECISION)
+
 
 @dataclass(frozen=True, slots=True)
 class RouteCandidate:
@@ -59,13 +75,16 @@ class RouteCandidate:
         duration/distance tie-breaks::
 
             (severe_miles, high_miles, avg_risk, duration_s, distance_m)
+
+        ``avg_risk`` is compared at :data:`AVG_RISK_PRECISION` decimals so that a
+        noise-level difference cannot outrank a real time difference.
         """
         head: tuple[float, ...] = (self.summary.no_travel_miles,) if safety_gate else ()
         return (
             *head,
             self.summary.severe_miles,
             self.summary.high_miles,
-            self.summary.avg_risk,
+            comparable_avg_risk(self.summary.avg_risk),
             self.duration_s,
             self.distance_m,
         )
@@ -123,7 +142,7 @@ def _criterion_value(candidate: RouteCandidate, key: str) -> float:
         "no_travel_miles": candidate.summary.no_travel_miles,
         "severe_miles": candidate.summary.severe_miles,
         "high_miles": candidate.summary.high_miles,
-        "avg_risk": candidate.summary.avg_risk,
+        "avg_risk": comparable_avg_risk(candidate.summary.avg_risk),
         "duration_s": candidate.duration_s,
     }[key]
 

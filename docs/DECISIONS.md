@@ -289,6 +289,35 @@ a first impression.
 
 ---
 
+## D18 — Average risk is compared at one decimal place
+
+**Decision.** `avg_risk` participates in ranking at `AVG_RISK_PRECISION = 1` decimal, so
+routes whose average risk differs by less than ~0.05 tie and the ranking falls through to travel
+time. The *displayed* value keeps full precision.
+
+**Why.** Found by running the real pipeline, not by a test. A live Chicago→Detroit run produced:
+
+```
+Option C ranks first over Option B: 0.01 lower average risk; 53m longer travel time.
+```
+
+Across a handful of checkpoints a 0.01 average-risk difference is noise. Letting it decide a
+safety recommendation is worse than not ranking at all — the app would recommend a slower,
+equally-safe route and justify it with a number no driver could act on. The lexicographic order
+from D5 is correct; what was wrong was comparing a float score at unlimited precision.
+
+**Guard.** Two tests, one in each direction: a 0.025 average-risk gap must **not** outrank an
+extra hour of driving, and a 0.5 gap **must** outrank two hours. A tolerance that swallows real
+differences would be as wrong as the original bug.
+
+**Generalisation.** Any threshold-derived score compared at full float precision will eventually
+decide a real decision on rounding noise. The fix is a comparison tolerance sized to the noise
+floor of the sampling, not to the precision of the arithmetic.
+
+**Task.** BE-16, BE-27, BUGS.md B-19.
+
+---
+
 ## Note for reviewers: sampling resolution vs. weather resolution
 
 The weather source is **hourly**, while the assessment's densest sampling mode is 10 miles — about

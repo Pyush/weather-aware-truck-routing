@@ -78,7 +78,14 @@ ignore = [
 # and the missing-docstring rules that do not apply to config modules.
 "config/settings/*.py" = ["F403", "F405", "F811"]
 "config/*.py" = ["D104"]
-"*/tests/*" = ["D100", "D101", "D102", "D103", "D104", "ANN001", "ANN201", "D403"]
+# N818 wants every exception name to end in "Error". These read better as a
+# taxonomy -- UpstreamTimeout / GeocodeNotFound / NoRouteFound -- and the module
+# is already errors.py, so the suffix would be noise.
+"tripplan/adapters/errors.py" = ["N818"]
+# get_json returns whatever the provider returned; `Any` is the honest type and
+# every caller parses it into a typed model immediately.
+"tripplan/adapters/http.py" = ["ANN401"]
+"*/tests/*" = ["D100", "D101", "D102", "D103", "D104", "D107", "ANN001", "ANN201", "ANN204", "D403"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

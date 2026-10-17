@@ -214,6 +214,39 @@ def test_tally_reports_wins_per_criterion() -> None:
     assert tally["b"]["duration_s"] == 0
 
 
+def test_noise_level_average_risk_does_not_beat_a_real_time_difference() -> None:
+    """Regression guard for the live-pipeline finding.
+
+    Two options scored 1.08 and 1.09 average risk and ranking preferred the
+    *slower* one on that 0.01 gap. Here A is 0.025 safer on average but takes an
+    extra hour; that difference is inside the noise of a handful of checkpoints,
+    so the two must tie and travel time must decide.
+    """
+    marginally_safer = make("a", levels=[L.LOW] * 40, duration_s=10_800.0)  # avg 1.000
+    much_faster = make("b", levels=[L.LOW] * 39 + [L.MODERATE], duration_s=7_200.0)  # avg 1.025
+
+    assert marginally_safer.summary.avg_risk < much_faster.summary.avg_risk, "A really is safer"
+    assert abs(much_faster.summary.avg_risk - marginally_safer.summary.avg_risk) < 0.05, "barely"
+
+    result = rank_routes([marginally_safer, much_faster])
+    assert result.winner is much_faster, "a noise-level risk gap must not outrank an hour"
+    assert "1h 00m shorter travel time" in " ".join(result.rationale)
+    assert "average risk" not in " ".join(result.rationale), "risk is a tie, not a reason"
+
+
+def test_genuinely_lower_average_risk_still_wins_over_time() -> None:
+    """The tolerance must not swallow a real difference."""
+    clearly_safer = make("a", levels=[L.LOW] * 10, duration_s=14_400.0)  # avg 1.0
+    riskier = make("b", levels=[L.LOW] * 5 + [L.MODERATE] * 5, duration_s=7_200.0)  # avg 1.5
+
+    assert clearly_safer.summary.avg_risk == pytest.approx(1.0)
+    assert riskier.summary.avg_risk == pytest.approx(1.5)
+
+    result = rank_routes([clearly_safer, riskier])
+    assert result.winner is clearly_safer, "a real 0.5 risk gap outranks two hours"
+    assert "lower average risk" in " ".join(result.rationale)
+
+
 def test_single_candidate_is_explained_without_a_runner_up() -> None:
     result = rank_routes([make("only", levels=[L.LOW])])
     assert result.winner is not None

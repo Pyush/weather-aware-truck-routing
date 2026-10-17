@@ -7,14 +7,19 @@ Nothing here is "done" until its `Done when` line is objectively true.
 
 Totals: **94 tasks** · ~50 h of focused work · 5 % buffer recommended (Phase 8 needs slack).
 
-**Progress: 23 / 94 complete (Phase 0 and Phase 1 done — 339 tests, all green in 0.3 s).**
+**Progress: 36 / 94 complete (Phases 0–2 done — 396 tests, all green in 0.4 s).**
 
 | Phase | Status |
 |---|---|
 | 0 · Foundations | ✅ complete (BE-00, BE-01, DOC-00) |
 | 1 · Domain core | ✅ complete (BE-10 … BE-29) |
-| 2 · Adapters | ⬜ next |
-| 3–8 | ⬜ |
+| 2 · Adapters | ✅ complete (BE-30 … BE-42), validated against the live APIs |
+| 3 · Orchestration + API | ⬜ next |
+| 4–8 | ⬜ |
+
+Phase 2 was validated with a live end-to-end run (geocode → 3 routes → checkpoints → ETAs →
+weather → risk → recommendation). See the timing table in `docs/BUGS.md`; it also surfaced the
+average-risk noise flaw fixed in D18.
 
 ---
 
@@ -116,43 +121,43 @@ Totals: **94 tasks** · ~50 h of focused work · 5 % buffer recommended (Phase 8
 
 ## Phase 2 — Config & external adapters
 
-- [ ] **BE-30** Settings & env config `~30m` → BE-01
+- [x] **BE-30** Settings & env config `~30m` → BE-01
   `.env` loading (no django-environ dep needed), `base_url`s, timeouts, cache TTLs, `WEATHER_LOCATION_BUDGET`, `SAMPLE_SPACINGS=(10,25,50)`, `SLIDER_MAX_HOURS=48`, CORS/hosts, `WEATHER_PROVIDER=open_meteo|mock`.
   **Done when** the app boots with zero env vars (defaults) and every documented var has a safe default.
-- [ ] **BE-31** `http/client.py` shared client `~40m` → BE-30
+- [x] **BE-31** `http/client.py` shared client `~40m` → BE-30
   Module-level `httpx.Client` (pooled), timeout, retries with exponential backoff + jitter, honours `Retry-After`, retries 429/5xx only, per-request logging with duration + upstream host, `UpstreamError` taxonomy.
   **Done when** a mocked 429-then-200 sequence retries successfully and a 4xx fails fast without retry.
-- [ ] **BE-32** `geocoding/base.py` `~25m` → BE-31
+- [x] **BE-32** `geocoding/base.py` `~25m` → BE-31
   `Geocoder` protocol: `geocode(query) -> GeocodeResult(lat, lon, display_name, country, admin1, source, confidence)`; `AmbiguousQuery` error carrying candidates.
   **Done when** a `MockGeocoder` satisfies the protocol and the analysis service depends only on the protocol.
-- [ ] **BE-33** `geocoding/open_meteo.py` `~35m` → BE-32
+- [x] **BE-33** `geocoding/open_meteo.py` `~35m` → BE-32
   Primary provider (`geocoding-api.open-meteo.com`); request build, parse, rank candidates (prefer populated-place feature codes), timeouts.
   **Done when** mocked test returns Denver for "Denver, CO" and raises `AmbiguousQuery` for "Springfield".
-- [ ] **BE-34** `geocoding/chain.py` + Photon `~35m` → BE-33
+- [x] **BE-34** `geocoding/chain.py` + Photon `~35m` → BE-33
   Ordered provider chain with fallback on error/empty (Photon → Nominatim-optional), per-query cache (TTL 24 h), and a clear 422 "could not locate" message.
   **Done when** primary failure falls through to Photon in a mocked test; Nominatim 403 does not break the flow.
-- [ ] **BE-35** Routing adapter (OSRM) `~50m` → BE-31
+- [x] **BE-35** Routing adapter (OSRM) `~50m` → BE-31
   `routing/osrm.py`: `alternatives=true`, `overview=full&geometries=geojson`, parse distance/duration/geometry, retry + timeout, typed `NoRouteFound`.
   **Done when** mocked 2-alternative response yields 2 normalized routes with float coords `[lon, lat]`.
-- [ ] **BE-36** 3-route guarantee `~50m` → BE-35
+- [x] **BE-36** 3-route guarantee `~50m` → BE-35
   If OSRM yields < 3 distinct geometries, synthesize variants with **perpendicular via-waypoints** at ~33 %/66 % along the base route (alternating sides, small offsets) and re-request; tag each route `source = osrm_alternative | osrm_via_variant`.
   **Done when** a mocked OSRM that only ever returns 1 route still produces 3 options, and a real 1,006 mi query returns 3.
-- [ ] **BE-37** Geometry dedupe `~35m` → BE-36
+- [x] **BE-37** Geometry dedupe `~35m` → BE-36
   Resample each geometry to N fixed arc-length points, compute mean pairwise distance; discard candidates with > 92 % overlap with an accepted route; preserve the shortest/best representative.
   **Done when** identical geometries collapse to one and genuinely distinct corridors survive.
-- [ ] **BE-38** Weather provider (Open-Meteo) `~50m` → BE-31
+- [x] **BE-38** Weather provider (Open-Meteo) `~50m` → BE-31
   `weather/open_meteo.py`: batched multi-coordinate request, `hourly=wind_speed_10m,rain,showers,snowfall`, `wind_speed_unit=mph`, `precipitation_unit=inch`, `snowfall_unit=inch`, `timezone=UTC`, `forecast_days` ≤ 16, parse to per-location `WeatherSeries(times[], wind[], rain[], snow[])` aligned on a shared axis. Record that `precipitation`/`snowfall` are **preceding-hour sums** and that `snowfall` is **depth while `precipitation` is liquid equivalent (~7:1)** (D15).
   **Done when** mocked 60-location response parses to 60 aligned series; `rain + showers` is the liquid value; `snowfall` is kept as depth; a `days>16` request is rejected client-side.
-- [ ] **BE-39** Forecast window planner `~30m` → BE-38
+- [x] **BE-39** Forecast window planner `~30m` → BE-38
   From `departure`, `max_route_duration` and the 48 h offset horizon compute `window_start`, `window_end`, required `past_days`/`forecast_days` so one fetch covers the base ETA **and every slider offset**; validate departure ≤ 16 days out with a friendly 400.
   **Done when** `window_end - window_start == route_duration + 48 h (+rounding)` and no fetched hour falls outside the provider's supported range.
-- [ ] **BE-40** Weather location planner `~45m` → BE-39
+- [x] **BE-40** Weather location planner `~45m` → BE-39
   Union all checkpoints across routes; dedupe by rounded coords and coarse cell (~0.02°) so overlapping routes share fetches; enforce `WEATHER_LOCATION_BUDGET`; when over budget, coarsen spacing and emit a `weather_coarsened` warning (never silently).
   **Done when** 3 overlapping routes over a shared corridor fetch fewer locations than 3× the single-route count, and the budget is never exceeded.
-- [ ] **BE-41** Weather risk indexer `~45m` → BE-40, BE-14b
+- [x] **BE-41** Weather risk indexer `~45m` → BE-40, BE-14b
   For each checkpoint, build `hourly_risk: list[int]` (level per hour across the window) plus base `eta_hour_index`; `CHECKPOINT_TIME_SNAP = "floor"` default with `ceil`/`nearest` alternatives (D14); reuses Phase 1 pure functions; NaN-safe.
   **Done when** the slider level at offset *h* equals `hourly_risk[eta_hour_index + h]`, and the three snap modes differ by **at most one index**.
-- [ ] **BE-42** Adapter tests `~50m` → BE-33…BE-41
+- [x] **BE-42** Adapter tests `~50m` → BE-33…BE-41
   Mocked/recorded fixtures: geocode chain fallback, OSRM alternatives + via-variants, weather batch parse, 429 retry, window planner edges, indexer invariant, snap-mode bound, rule→variable mapping, dedupe thresholds.
   **Done when** all pass with **zero** real network calls.
 - [ ] **BE-43** Real-API integration smoke (opt-in) `~30m` → BE-42

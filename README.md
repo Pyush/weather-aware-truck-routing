@@ -35,6 +35,7 @@ load weight and travel time**.
 | [`PLAN.md`](PLAN.md) | Architecture, verified API benchmarks, roadmap, risks |
 | [`docs/TASKS.md`](docs/TASKS.md) | 94 micro-tasks with dependencies and acceptance criteria |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | 17 numbered decisions on rule semantics |
+| [`docs/BUGS.md`](docs/BUGS.md) | Defects found, root causes, and how each was caught |
 
 ## Quickstart
 
