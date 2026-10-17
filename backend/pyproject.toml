@@ -82,10 +82,22 @@ ignore = [
 # taxonomy -- UpstreamTimeout / GeocodeNotFound / NoRouteFound -- and the module
 # is already errors.py, so the suffix would be noise.
 "tripplan/adapters/errors.py" = ["N818"]
+# Same reasoning for the HTTP-facing taxonomy: ValidationFailed / NoRouteAvailable
+# read better than *Error inside a module already named errors.py.
+"tripplan/api/errors.py" = ["N818", "ANN401"]
 # get_json returns whatever the provider returned; `Any` is the honest type and
 # every caller parses it into a typed model immediately.
 "tripplan/adapters/http.py" = ["ANN401"]
-"*/tests/*" = ["D100", "D101", "D102", "D103", "D104", "D107", "ANN001", "ANN201", "ANN204", "D403"]
+"tripplan/api/views.py" = ["ANN401"]
+# Management-command packages are namespace packages.
+"tripplan/management/__init__.py" = ["D104"]
+"tripplan/management/commands/__init__.py" = ["D104"]
+# Django management commands take argparse and **options; annotating them buys
+# nothing, and argparse offers no useful type to write.
+"tripplan/management/**/*.py" = ["ANN001", "ANN002", "ANN003", "RUF012"]
+# Test doubles use loose typing on purpose, and a mutable class-level table is
+# how a fixture reads best.
+"*/tests/*" = ["D100", "D101", "D102", "D103", "D104", "D107", "ANN001", "ANN201", "ANN204", "ANN401", "D403", "RUF012", "B007"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

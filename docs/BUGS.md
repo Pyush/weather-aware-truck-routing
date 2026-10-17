@@ -4,7 +4,7 @@ Defects found during implementation, with root cause, how they were found, and t
 Kept because most of them were invisible to the tests that existed at the time — the
 "how it was found" column is the part worth reading twice.
 
-Status: Phase 0 + 1 complete. 12 defects recorded, 0 open.
+Status: Phases 0–3 complete. **32 defects recorded, 0 open.**
 
 ---
 
@@ -229,6 +229,47 @@ never used it, leaving `now` a dead parameter; removed rather than left as noise
 | Batch test built one-record payloads for a 2-location batch | A batch of *k* needs *k* records; payloads now mirror the 2+2+1 split |
 | Window test expected `start + 48h` | 20 h driving + a 48 h offset is **68 h**; the old expectation would have hidden a real under-fetch |
 | Cell test assumed two points 0.001° apart always share a cell | `-87.000` and `-87.001` straddle a cell edge — correct behaviour, so the test now asserts both halves |
+
+---
+
+## B-28 · Weather-outage degradation crashed with a 500 instead of degrading **(S1)**
+
+**Found by** the API contract test that asserts a missing forecast still yields a usable map.
+
+`_fetch_weather` correctly caught the provider failure and returned `[]`, then appended a
+warning. But the checkpoint loop went straight on to index `series[series_index]` — with no
+series. So the degradation path that existed specifically to avoid a 502 produced an
+`IndexError`, i.e. a 500.
+
+**Why it is S1.** This is the difference between "the weather service is down" (recoverable,
+map still draws) and "the app is broken". It would only ever appear during an upstream
+outage — exactly when the app is least able to fail.
+
+**Fix.** When no series were fetched, each checkpoint gets a single placeholder `HourlyRisk`
+carrying `data_quality="missing"`, so the UI can say the corridor was not assessed rather than
+implying the road is clear.
+
+**Lesson.** A try/except that returns an empty collection is only half a fix; every consumer
+of that collection needs to handle it being empty.
+
+## B-29 · Cache key used characters memcached rejects **(S1, invisible in dev)**
+
+**Found by** `filterwarnings = ["error"]` in the pytest config turning Django's
+`CacheKeyWarning` into a test failure.
+
+The cache key was built from the semantic inputs — `"chicago, il|detroit, mi|2026-10-17T…|35000"`.
+`LocMemCache` accepts any string, so this worked perfectly in development and would have failed
+on the first Redis or memcached deployment, which reject spaces, `|` and `+` outright.
+
+**Fix.** SHA-256 the key. Portable, bounded, and stable.
+
+## B-30…B-32 · Test isolation and stale input **(S3)**
+
+| What | Correction |
+|---|---|
+| API tests shared the process-wide cache; because `payload()` truncates the departure to whole seconds, tests landing in the same second produced identical keys and an earlier result satisfied a later test | Autouse fixture clears the cache before and after each test |
+| Timezone-ambiguity warning never fired, because DRF attaches the project timezone during parsing — the information was already gone | Detect the missing offset from the **raw** payload string, which is what the user actually typed |
+| `test_missing_fields_are_reported_together` sent `origin="x"`, which is *valid*, so it could never be reported missing | Send `{}` so all four required fields are genuinely absent |
 
 ---
 

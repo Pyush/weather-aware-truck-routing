@@ -7,7 +7,7 @@ the container has something to probe.
 from __future__ import annotations
 
 from django.http import HttpRequest, JsonResponse
-from django.urls import path
+from django.urls import include, path
 
 
 def health(_request: HttpRequest) -> JsonResponse:
@@ -17,4 +17,5 @@ def health(_request: HttpRequest) -> JsonResponse:
 
 urlpatterns = [
     path("healthz", health, name="healthz"),
+    path("api/", include("tripplan.api.urls")),
 ]

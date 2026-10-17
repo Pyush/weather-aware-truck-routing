@@ -7,19 +7,21 @@ Nothing here is "done" until its `Done when` line is objectively true.
 
 Totals: **94 tasks** · ~50 h of focused work · 5 % buffer recommended (Phase 8 needs slack).
 
-**Progress: 36 / 94 complete (Phases 0–2 done — 396 tests, all green in 0.4 s).**
+**Progress: 48 / 94 complete (Phases 0–3 done — 429 tests, all green in 0.8 s).**
 
 | Phase | Status |
 |---|---|
 | 0 · Foundations | ✅ complete (BE-00, BE-01, DOC-00) |
 | 1 · Domain core | ✅ complete (BE-10 … BE-29) |
 | 2 · Adapters | ✅ complete (BE-30 … BE-42), validated against the live APIs |
-| 3 · Orchestration + API | ⬜ next |
-| 4–8 | ⬜ |
+| 3 · Orchestration + API | ✅ complete (BE-50 … BE-61) — both endpoints verified over HTTP |
+| 4–6 · Frontend | ⬜ next |
+| 7–8 | ⬜ |
 
-Phase 2 was validated with a live end-to-end run (geocode → 3 routes → checkpoints → ETAs →
-weather → risk → recommendation). See the timing table in `docs/BUGS.md`; it also surfaced the
-average-risk noise flaw fixed in D18.
+Phases 2 and 3 were each validated with a live end-to-end run. Measured event timeline
+(D20): geometry usable at **2.5 s**, full analysis at **21 s** for a 25-location weather
+fetch — which is precisely why `/analyze/stream/` is the primary interface. Phase 2's run
+also surfaced the average-risk noise flaw fixed in D18.
 
 ---
 
@@ -173,37 +175,37 @@ average-risk noise flaw fixed in D18.
 
 ## Phase 3 — Orchestration & API
 
-- [ ] **BE-50** `services/trip_analysis.py` `~60m` → BE-34, BE-36, BE-41
+- [x] **BE-50** `services/trip_analysis.py` `~60m` → BE-34, BE-36, BE-41
   Orchestrate: validate → geocode (cache-first) → 3 routes → per-route sampling → ETAs → location plan → batched sequential weather fetch (chunk 20) → per-checkpoint index → evaluate → miles → rank/recommend → build payload. Emits progress events; supports early yield between batches.
   **Done when** with mocked providers it produces a complete, self-consistent payload and a `warnings[]` list.
-- [ ] **BE-51** NDJSON streaming `~50m` → BE-50
+- [x] **BE-51** NDJSON streaming `~50m` → BE-50
   `StreamingHttpResponse` + event encoder; events: `meta` → `route`×3 → `checkpoints`(per batch) → `summary`×3 → `recommendation` → `done`; mid-stream upstream failures become an `error` event, never a broken stream; `Content-Type: application/x-ndjson`.
   **Done when** a consumer can render the map from the first 2 events and the stream always terminates with `done` or `error`.
-- [ ] **BE-52** Streaming endpoint `~30m` → BE-51
+- [x] **BE-52** Streaming endpoint `~30m` → BE-51
   `POST /api/v1/trips/analyze/stream/`; headers for no buffering (`X-Accel-Buffering: no`), heartbeat comment lines every N s to defeat proxy buffering, timing headers (`Server-Timing`).
   **Done when** `curl -N` shows incremental output with the first event under 5 s on a warm cache.
-- [ ] **BE-53** Non-streaming endpoint `~25m` → BE-50
+- [x] **BE-53** Non-streaming endpoint `~25m` → BE-50
   `POST /api/v1/trips/analyze/` returning the identical payload in one JSON body (used by tests, CI, curl demos).
   **Done when** both endpoints emit byte-identical `routes/summary/recommendation` sections for the same mocked input.
-- [ ] **BE-54** Request validation `~40m` → BE-52
+- [x] **BE-54** Request validation `~40m` → BE-52
   Serializer: origin/destination non-empty strings, departure ISO-8601 with tz (naive ⇒ assume UTC + warning), load weight 0–80,000 lb, spacing ∈ {10, 25, 50}, optional truck params. Per-field error messages.
   **Done when** invalid payloads get field-level 400s with actionable messages (not stack traces).
-- [ ] **BE-55** Error taxonomy `~35m` → BE-54
+- [x] **BE-55** Error taxonomy `~35m` → BE-54
   400 validation · 404 geocode failure · 422 no route found · 502 upstream failure (with partial data + `warnings`) · 504 upstream timeout · 503 all providers down + cache empty.
   **Done when** each class is reachable by a test and the UI can render a useful message for each.
-- [ ] **BE-56** `GET /api/v1/config/` + `/health/` `~30m` → BE-11
+- [x] **BE-56** `GET /api/v1/config/` + `/health/` `~30m` → BE-11
   Export thresholds, load policy, level colors, spacing choices, slider max, ETA assumptions — the UI legend renders from this, so rules have **one** source of truth.
   **Done when** the frontend has no hard-coded risk thresholds or level colors.
-- [ ] **BE-57** CORS, hosts, security `~25m` → BE-52
+- [x] **BE-57** CORS, hosts, security `~25m` → BE-52
   `django-cors-headers` allow-list from env, `ALLOWED_HOSTS`, proxy header trust, `DEBUG` off by default, no secrets in code.
   **Done when** the deployed frontend origin is allowed and a random origin is rejected.
-- [ ] **BE-58** Result caching `~30m` → BE-53
+- [x] **BE-58** Result caching `~30m` → BE-53
   Cache full analysis keyed by hash of normalized query + config version; TTL 15 min; cache-hit flag surfaced in `done` event.
   **Done when** an identical second query returns in < 300 ms and reports `cached: true`.
-- [ ] **BE-59** API contract tests `~45m` → BE-52, BE-53
+- [x] **BE-59** API contract tests `~45m` → BE-52, BE-53
   Recorded NDJSON fixtures; assert event order, payload schema, and that `routes[i].checkpoints[j].hourly_risk` is aligned to `meta.hour_window_start`.
   **Done when** contract tests fail loudly on any schema drift.
-- [ ] **BE-60** Benchmark script `~30m` → BE-58
+- [x] **BE-60** Benchmark script `~30m` → BE-58
   `make bench` measures cold vs warm analyze latency for 3 route profiles (short/medium/long) and prints location counts + cache hit rates.
   **Done when** output is pasted into `docs/BENCHMARKS.md` with the date.
 
@@ -346,7 +348,7 @@ average-risk noise flaw fixed in D18.
 - [ ] **DOC-12** Demo data & prewarm `~30m` → BE-61
   `WEATHER_PROVIDER=mock` deterministic storm generator; `scripts/prewarm.py` to warm the cache for the Loom route(s); two example trips (one clear, one storm).
   **Done when** the demo works with upstream APIs unreachable.
-- [ ] **BE-61** Mock weather provider `~40m` → BE-30, BE-38
+- [x] **BE-61** Mock weather provider `~40m` → BE-30, BE-38
   Deterministic synthetic series (seeded by coords + date) with a realistic storm band along a corridor; same interface as Open-Meteo; instant.
   **Done when** `WEATHER_PROVIDER=mock` yields a full analysis in < 500 ms with plausible severe segments.
 - [ ] **DOC-13** Loom script `~45m` → DOC-12

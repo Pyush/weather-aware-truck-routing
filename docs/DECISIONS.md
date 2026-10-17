@@ -318,6 +318,61 @@ floor of the sampling, not to the precision of the arithmetic.
 
 ---
 
+---
+
+## D19 — Cache keys are hashed, and validation failures name every field
+
+**Decision.** Two small things learned the hard way, recorded because both are
+easy to get wrong silently.
+
+**Cache keys are SHA-256 digests.** The natural key (place names + ISO timestamp
++ parameters) contains spaces, `|` and `+`, all of which memcached rejects
+outright. Building it as-is works perfectly on `LocMemCache` and then fails on the
+first Redis or memcached deployment. The digest is bounded and portable.
+
+**Validation reports every bad field at once.** A driver fixing a form should not
+have to submit four times to discover four problems, so the 400 body is
+`{fields: {field: [messages]}}` for all offending fields simultaneously.
+
+**Why it matters.** Both defects were invisible in development — `LocMemCache`
+accepts any string, and a validator that returns only the first error passes every
+happy-path test. `pytest`'s `filterwarnings = error` happened to surface the cache
+one by turning Django's `CacheKeyWarning` into a test failure; that is the only
+reason it was caught before deploying.
+
+**Task.** BE-54, BE-58, BE-59.
+
+---
+
+## D20 — The streaming endpoint is the primary interface
+
+**Recommendation.** Use `POST /api/v1/trips/analyze/stream/` for the app. Measured
+event timeline from the dev server against live providers:
+
+```
+   931ms  meta
+  2500ms  route   r0 280.4mi 13cps src=osrm_alternative
+  2518ms  weather_plan
+ 21026ms  weather          <-- the 19 s tail
+ 21062ms  done  locs=25 elapsed=21045ms
+```
+
+Geometry is usable at **2.5 s** while the weather tail runs to 21 s — an 8x
+improvement in time-to-map, and the whole reason the frontend can draw routes
+immediately with checkpoints filling in behind. The non-streaming endpoint exists
+for `curl`, CI and the parity tests, and returns byte-identical `routes` /
+`summaries` / `checkpoints` / `recommendation` sections (asserted by
+`test_streaming_and_non_streaming_agree`).
+
+**Also from that trace.** The D8 measurement of the free OSRM server is visible in
+one request: it returned **2** alternatives for Chicago→Detroit, and the
+via-waypoint synthesis supplied the third, tagged `src=osrm_via_variant`. The 3-route
+guarantee (D11) is doing real work on every request, not just in a test.
+
+**Task.** BE-51, BE-52, BE-53, BE-59, BE-60.
+
+---
+
 ## Note for reviewers: sampling resolution vs. weather resolution
 
 The weather source is **hourly**, while the assessment's densest sampling mode is 10 miles — about

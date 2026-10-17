@@ -1,15 +1,13 @@
 """API error taxonomy.
 
-Maps upstream and validation failures onto stable HTTP codes so the frontend can
-render a useful message instead of a stack trace (BE-55).
+Maps failures onto stable HTTP codes so the frontend can render a useful message
+instead of a stack trace (BE-55). Each class carries a machine-readable ``code``
+that the UI switches on -- the copy is allowed to change, the code is not.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:  # pragma: no cover - typing only
-    from rest_framework.response import Response
+from typing import Any
 
 
 class ApiError(Exception):
@@ -29,7 +27,56 @@ class ApiError(Exception):
         return {"error": {"code": self.code, "message": self.message, "details": self.details}}
 
 
-def api_exception_handler(exc: Exception, context: dict[str, object]) -> Response | None:
+class ValidationFailed(ApiError):
+    """The request body did not pass validation."""
+
+    status_code = 400
+    code = "validation_failed"
+
+
+class LocationNotFound(ApiError):
+    """An origin or destination could not be resolved."""
+
+    status_code = 404
+    code = "location_not_found"
+
+
+class NoRouteAvailable(ApiError):
+    """No route exists between the resolved endpoints."""
+
+    status_code = 422
+    code = "no_route"
+
+
+class DepartureOutOfRange(ApiError):
+    """The departure date is beyond the forecast horizon of the weather provider."""
+
+    status_code = 400
+    code = "departure_out_of_range"
+
+
+class UpstreamUnavailable(ApiError):
+    """A third-party provider failed and no partial result was possible."""
+
+    status_code = 502
+    code = "upstream_unavailable"
+
+
+class UpstreamTimeout(ApiError):
+    """A third-party provider did not respond in time."""
+
+    status_code = 504
+    code = "upstream_timeout"
+
+
+class ServiceUnavailable(ApiError):
+    """Every configured provider is unavailable."""
+
+    status_code = 503
+    code = "service_unavailable"
+
+
+def api_exception_handler(exc: Exception, context: dict[str, object]) -> Any:
     """DRF exception hook.
 
     Converts :class:`ApiError` into a structured response and defers everything
