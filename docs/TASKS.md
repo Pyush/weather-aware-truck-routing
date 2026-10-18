@@ -7,9 +7,9 @@ Nothing here is "done" until its `Done when` line is objectively true.
 
 Totals: **94 tasks** · ~50 h of focused work · 5 % buffer recommended (Phase 8 needs slack).
 
-**Progress: 84 / 94 formally complete.**
+**Progress: 85 / 94 formally complete.**
 
-The 10 remaining are the ones that need something this environment cannot
+The 9 remaining are the ones that need something this environment cannot
 provide or that are optional by design: BE-43/44/45 (opt-in live-API smoke and
 two alternate providers), FE-15 (the gradient risk strip alongside the
 heatmap), FE-35 (Playwright, marked stretch), OPS-00 (local `up`/`down` targets
@@ -185,7 +185,7 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [x] **BE-42** Adapter tests `~50m` → BE-33…BE-41
   Mocked/recorded fixtures: geocode chain fallback, OSRM alternatives + via-variants, weather batch parse, 429 retry, window planner edges, indexer invariant, snap-mode bound, rule→variable mapping, dedupe thresholds.
   **Done when** all pass with **zero** real network calls.
-- [ ] **BE-43** Real-API integration smoke (opt-in) `~30m` → BE-42
+- [x] **BE-43** Real-API integration smoke (opt-in) `~30m` → BE-42 (7 live tests against Open-Meteo + OSRM; `-m "not integration"` is provably offline via a conftest socket guard, verified by planting a violation; `make bench-integration` records latencies)
   `pytest -m integration`: one live geocode, one live OSRM, one live weather batch; asserts shape + records latencies into `docs/BENCHMARKS.md`.
   **Done when** `-m "not integration"` (the default suite) never touches the network.
 

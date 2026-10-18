@@ -9,7 +9,8 @@ NPM := npm --prefix frontend
 .DEFAULT_GOAL := help
 .PHONY: help install install-backend install-frontend test test-backend test-frontend \
         test-integration lint lint-backend lint-frontend format security security-selftest \
-        gen-types check-contract dev dev-backend dev-frontend up down logs bench clean
+        gen-types check-contract bench-integration dev dev-backend dev-frontend \
+        up down logs bench clean
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -103,10 +104,6 @@ logs: ## Tail container logs
 bench: ## Measure live API latencies (BE-60)
 	cd backend && .venv/bin/python manage.py bench
 
-# ---------------------------------------------------------------------------
-# Housekeeping
-# ---------------------------------------------------------------------------
-
-clean: ## Remove caches and build artefacts
-	rm -rf backend/.pytest_cache backend/.ruff_cache backend/**/__pycache__ frontend/node_modules/.vite
-	find backend -name '__pycache__' -type d -prune -exec rm -rf {} +
+bench-integration: ## Run the opt-in live-API tests and record their latencies
+	cd backend && TRIPPLAN_BENCH_OUT=$${PWD}/../.live-bench.json .venv/bin/pytest -m integration -q -s
+	@python3 scripts/record_live_bench.py .live-bench.json && rm -f .live-bench.json

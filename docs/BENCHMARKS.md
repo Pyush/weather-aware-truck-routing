@@ -84,3 +84,20 @@ These are stated as open in `docs/TASKS.md` (FE-17, FE-33) rather than guessed:
 
 Recording a number here means it was measured. An unmeasured claim belongs in the
 task list, not in this file.
+
+## Live third-party APIs
+
+<!-- live-api:begin -->
+
+### Live API latencies — recorded 2026-10-18T07:11:10+00:00
+
+| Leg | Samples | Median | Slowest |
+|---|---:|---:|---:|
+| `geocode` | 2 | **0.148 s** | 0.148 s |
+| `route` | 1 | **0.884 s** | 0.884 s |
+| `weather` | 1 | **0.136 s** | 0.136 s |
+
+Measured against the live APIs: 3 route options returned, 2 weather locations, 57-hour forecast window.
+
+Reproduce with `make bench-integration`. These are *recorded, not asserted* — a hard threshold would turn a provider's slow day into a red build.
+<!-- live-api:end -->

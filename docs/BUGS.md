@@ -20,7 +20,7 @@ logic error, and not one of them would have been caught by another unit test. Th
 only by `docker compose up` and looking at what came back.
 
 Status: Phases 0–8 implemented and verified against the running stack.
-**59 defects recorded, 0 open**
+**62 defects recorded, 0 open**
 (remaining QA tracked separately).
 
 ---
@@ -342,6 +342,32 @@ alternatives and the via-waypoint synthesis produced the third, correctly tagged
 | **B-57** | S1 | **Every request 301'd to a URL nothing served.** `SECURE_SSL_REDIRECT` defaulted to `true`, but the bundled nginx terminates plain HTTP, so every request — and the container healthcheck — was redirected to https. Default it to `false` and enable it only where a terminator actually speaks https. | `/api/v1/health/` through nginx returned 301; 200 after the fix |
 | **B-58** | S2 | **nginx crash-looped with "host not found in upstream".** It resolves `proxy_pass` hostnames at config load, so starting before the backend was ready killed it permanently. Resolve per request against Docker's embedded DNS instead. | Container reached a steady `Up (healthy)` state |
 | **B-59** | S2 | **gunicorn could not write its control file**: `Permission denied: '/app/.gunicorn'` on every boot, because the non-root user had a read-only working directory. Give it a directory it owns. | Container logs clean on start |
+
+---
+
+## BE-43 — the live-API smoke suite, and the guards around it
+
+Writing the integration tests surfaced three defects, two of them in the tests
+themselves. The pattern is the familiar one: a test that asserts the wrong
+thing is worse than no test, because it reports a problem that is not there.
+
+| ID | Severity | Finding | Correction |
+|---|---|---|---|
+| **B-60** | S2 | The network guard was written as an autouse fixture inside a test module, which applies **only to that module**. A test in any other file was free to call a live API — verified by planting one: it dialled out and timed out instead of being blocked. Moved to `conftest.py`, where it covers the whole suite and exempts `integration`-marked tests. | Deliberate violation now fails in 0.03 s |
+| **B-61** | S3 | Asserted the weather series length `== window.hours`. The provider is asked for whole days and returns a superset (72 h for a 57 h window) — which is correct, because `build_hourly_risk` indexes in with `window.index_of`. Asserted *coverage* instead. | Live test green |
+| **B-62** | S3 | Asserted `times == sorted(times)` to prove the hours ascend. `times` is a tuple and `sorted()` returns a list, so the comparison was **always False** — the test would have failed on correct data forever, and the obvious "fix" would have been to delete the assertion. Compare as a sequence. | Live test green |
+
+**On the guards.** Both controls here were verified by making them fail, which
+is the only way to know a control works: the network guard by planting a test
+that dials out, and the contract drift check by corrupting the committed file. A
+control that has never been seen red is a comment, not a control.
+
+**On the snow test.** `test_live_snow_is_depth_not_liquid_equivalent` is the one
+that earns its place — snow depth versus liquid equivalent is a claim about
+Open-Meteo, so no recorded fixture can confirm it. It **skips** when there is no
+snow rather than failing, because asserting a ratio with a zero numerator is how
+a test quietly stops testing anything. It skipped on this run: no snow in the
+current window.
 
 **Environment note.** Vite's file watcher hit `ENOSPC` (inotify limit 65,536; cannot raise it here),
 so it served stale transformed modules despite successful typechecks. Restarting with
