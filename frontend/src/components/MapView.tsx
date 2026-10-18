@@ -265,15 +265,22 @@ export function MapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geoSource]);
 
-  /** Fit the viewport to a route (or all routes). */
-  const fit = useCallback((routeId: string | null) => {
+  /**
+   * Fit the viewport to a route (or all routes).
+   *
+   * Returns whether the fit actually ran, so a caller can tell an aborted fit
+   * (style still loading) from a finished one. A `void` return made that
+   * indistinguishable, which is how a bailed first fit came to look like a
+   * completed one.
+   */
+  const fit = useCallback((routeId: string | null): boolean => {
     const m = map.current;
     const { analysis: a } = latest.current;
-    if (!m || !ready.current) return;
+    if (!m || !ready.current) return false;
     const bounds = routeId
       ? a.routes.find((r) => r.id === routeId)?.geometry
       : a.routes.flatMap((r) => r.geometry);
-    if (!bounds || bounds.length < 2) return;
+    if (!bounds || bounds.length < 2) return false;
     const lons = bounds.map((c) => c[0]);
     const lats = bounds.map((c) => c[1]);
     const box: LngLatBoundsLike = [
@@ -281,6 +288,7 @@ export function MapView({
       [Math.max(...lons), Math.max(...lats)],
     ];
     m.fitBounds(box, { padding: { top: 60, bottom: 60, left: 60, right: 60 }, duration: 700, maxZoom: 11 });
+    return true;
   }, []);
 
   function fitAll() {
@@ -298,10 +306,15 @@ export function MapView({
   useEffect(() => useStore.subscribe(syncSources), [syncSources]);
 
   // Fit once, when routes first arrive.
+  //
+  // The marker is set only if the fit actually ran. `fit()` bails when the
+  // style has not finished loading, which is the common case: MapView mounts as
+  // soon as routes exist, while the map's `load` event fires later. Marking
+  // first meant a bailed fit was never retried, and the user was left on the
+  // default zoom until they clicked "Fit all" by hand.
   useEffect(() => {
-    if (analysis.routes.length > 0 && fittedRoute.current === null) {
+    if (analysis.routes.length > 0 && fittedRoute.current === null && fit(null)) {
       fittedRoute.current = 'all';
-      fit(null);
     }
   }, [analysis.routes.length, fit]);
 

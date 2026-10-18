@@ -20,7 +20,8 @@ logic error, and not one of them would have been caught by another unit test. Th
 only by `docker compose up` and looking at what came back.
 
 Status: Phases 0–8 implemented and verified against the running stack.
-**63 defects recorded, 0 open**
+**63 defects recorded, 0 open** — plus 4 dropped/deferred by explicit decision
+(BE-44, BE-45, FE-15 strip legibility, and the public deploy).
 (remaining QA tracked separately).
 
 ---
@@ -376,6 +377,15 @@ an unjustified change.
 
 The lesson generalises: "the screenshot is wrong" is a hypothesis, not a
 finding. Instrument before you edit.
+
+| **B-64** | S2 | **The map never auto-fitted on first load.** The initial-fit effect set
+`fittedRoute.current = 'all'` *before* calling `fit()`, but `fit()` silently bails
+when the style has not finished loading. MapView mounts as soon as routes exist,
+while the map's `load` event fires later, so the common first fit bailed -- and with
+the marker already set, the effect never retried. Users were left on the default zoom
+until they clicked "Fit all" by hand. `fit()` now returns whether it ran, and the
+marker is set only on a fit that completed. | First-load screenshot framed on the corridor
+with no interaction |
 
 **On the guards.** Both controls here were verified by making them fail, which
 is the only way to know a control works: the network guard by planting a test
