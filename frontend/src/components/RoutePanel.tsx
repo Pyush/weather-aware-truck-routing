@@ -382,7 +382,8 @@ function CheckpointTable({
             </tr>
           </thead>
           <tbody>
-            {visibleRows(sorted, scrollTop).map((row) => (
+            {renderSpacer('before', visibleRows(sorted, scrollTop).before)}
+            {visibleRows(sorted, scrollTop).visible.map((row) => (
               <tr
                 key={row.id}
                 tabIndex={0}
@@ -409,6 +410,7 @@ function CheckpointTable({
                 <Td dim>{row.point.risk.dominant_factor}</Td>
               </tr>
             ))}
+            {renderSpacer('after', visibleRows(sorted, scrollTop).after)}
           </tbody>
         </table>
       </div>
@@ -416,10 +418,12 @@ function CheckpointTable({
   );
 }
 
-const ROW_HEIGHT = 24;
+/** Row height in px; the windowing arithmetic depends on it. */
+export const ROW_HEIGHT = 24;
 /** Rows rendered beyond the viewport, so scrolling does not reveal blanks. */
-const OVERSCAN = 8;
-const TABLE_HEIGHT = 260;
+export const OVERSCAN = 8;
+/** Scroll viewport height in px; matches the table container's maxHeight. */
+export const TABLE_HEIGHT = 260;
 /**
  * Row count above which the table windows its rows (FE-20).
  *
@@ -429,13 +433,25 @@ const TABLE_HEIGHT = 260;
  * scheme is easy to get subtly wrong (blank rows, lost focus, broken sticky
  * header) and the common case does not justify that risk.
  */
-const VIRTUALISE_ABOVE = 200;
 
-function visibleRows<T>(rows: T[], scrollTop: number): T[] {
-  if (rows.length <= VIRTUALISE_ABOVE) return rows;
+/**
+ * Window the rendered rows and pad the body so the scrollbar stays honest.
+ *
+ * Without the spacer, slicing the rows makes the table only as tall as the
+ * window, so the scrollbar bottoms out after one screen and every row beyond
+ * it is unreachable -- the table looks like it simply ends.
+ */
+export const VIRTUALISE_ABOVE = 200;
+
+export function visibleRows<T>(
+  rows: T[],
+  scrollTop: number,
+): { visible: T[]; before: number; after: number } {
+  if (rows.length <= VIRTUALISE_ABOVE) return { visible: rows, before: 0, after: 0 };
   const first = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
   const count = Math.ceil(TABLE_HEIGHT / ROW_HEIGHT) + OVERSCAN * 2;
-  return rows.slice(first, first + count);
+  const last = Math.min(rows.length, first + count);
+  return { visible: rows.slice(first, last), before: first, after: rows.length - last };
 }
 
 type Column = 'distance' | 'eta' | 'wind' | 'rain' | 'snow' | 'level';
@@ -505,6 +521,23 @@ function Th({
         children
       )}
     </th>
+  );
+}
+
+/**
+ * Empty rows that keep the table's scroll height honest.
+ *
+ * A windowed table that only renders the visible slice is only as tall as its
+ * window, so the scrollbar bottoms out after one screen and every row past it
+ * is unreachable -- the table looks like it simply ends. These spacers restore
+ * the full height so scrolling reaches the real rows.
+ */
+function renderSpacer(side: 'before' | 'after', count: number) {
+  if (count <= 0) return null;
+  return (
+    <tr key={`spacer-${side}`} aria-hidden="true">
+      <td colSpan={7} style={{ height: count * ROW_HEIGHT, padding: 0, border: 'none' }} />
+    </tr>
   );
 }
 

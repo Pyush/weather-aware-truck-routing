@@ -20,7 +20,7 @@ logic error, and not one of them would have been caught by another unit test. Th
 only by `docker compose up` and looking at what came back.
 
 Status: Phases 0–8 implemented and verified against the running stack.
-**63 defects recorded, 0 open** — plus 4 dropped/deferred by explicit decision
+**65 defects recorded, 0 open** — plus 4 dropped/deferred by explicit decision
 (BE-44, BE-45, FE-15 strip legibility, and the public deploy).
 (remaining QA tracked separately).
 
@@ -386,6 +386,12 @@ the marker already set, the effect never retried. Users were left on the default
 until they clicked "Fit all" by hand. `fit()` now returns whether it ran, and the
 marker is set only on a fit that completed. | First-load screenshot framed on the corridor
 with no interaction |
+| **B-65** | S2 | **A windowed table cannot scroll past its first screen.** Slicing the
+rendered rows makes the `<tbody>` only as tall as the window, so the scrollbar bottoms
+out after ~27 rows and every row beyond it is unreachable -- the table looks like it
+simply ends. Only latent above 200 rows, which is why no normal route ever showed it.
+Empty spacer rows now restore the full height. | `before + visible + after === total` is
+asserted at the top, middle and bottom of a 500-row table |
 
 **On the guards.** Both controls here were verified by making them fail, which
 is the only way to know a control works: the network guard by planting a test

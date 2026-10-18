@@ -274,15 +274,15 @@ export function riskStripStops(
   if (!bundle || bundle.points.length === 0 || geometry.length < 2) return [];
 
   const fractions = lineProgress(geometry);
-  // Both are miles, so a checkpoint's road distance maps straight onto a
-  // fraction of the drawn line.
-  const lastFraction = fractions[fractions.length - 1] || 1;
-  const roadToFraction = (distanceMi: number): number =>
-    Math.min(1, Math.max(0, distanceMi * lastFraction / (geometryMiles(geometry) || 1)));
+  const geometryLength = geometryMiles(geometry);
+  if (geometryLength === 0) return [];
 
+  // A checkpoint's road distance maps straight onto a fraction of the drawn
+  // line: both are miles of the same route, so their ratio is the position.
   const byProgress = new Map<number, RiskLevel>();
   for (const point of bundle.points) {
-    const snapped = nearestStop(fractions, roadToFraction(point.distance_mi));
+    const progress = Math.min(1, Math.max(0, point.distance_mi / geometryLength));
+    const snapped = nearestStop(fractions, progress);
     byProgress.set(snapped, riskAtOffset(point, offsetHours));
   }
 
