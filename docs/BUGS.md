@@ -13,7 +13,7 @@ the prop threading made it report 49 renders instead of 0.
 render claim was asserted in a docstring rather than measured, and the worker bug only appears
 in a production bundle. "It works on the dev server" is not the same claim as "it works".
 
-Status: Phases 0–3 complete; frontend verification in progress. **54 defects recorded, 0 open**
+Status: Phases 0–3 complete; frontend verification in progress. **55 defects recorded, 0 open**
 (remaining QA tracked separately).
 
 ---
@@ -330,6 +330,7 @@ alternatives and the via-waypoint synthesis produced the third, correctly tagged
 | **B-52** | S3 | `--text-dim` measured **3.93:1** against the panel background, below the WCAG AA 4.5:1 floor, and it carries most of the 10–11 px helper text. Raised to `#7b8aab` (4.90:1). | Measured contrast ratio in the browser |
 | **B-53** | S1 | **The claimed slider smoothness was false.** `offsetHours` was passed to `MapView` as a prop, so each of the 49 offset values re-rendered the component holding the WebGL context — 49 renders, not 0. `App` no longer subscribes to the offset; `MapView` subscribes imperatively and repaints via `setData`. | Render-count test, verified to fail at 49 when the prop threading is reintroduced |
 | **B-54** | S1 | **Production build could not render a map.** MapLibre resolves its worker relative to its own module; Vite rewrites that module into `/assets/maplibre-<hash>.js`, so the worker URL 404s and the SPA fallback returns HTML, failing MIME checks. Invisible in dev, where pre-bundling is excluded for MapLibre. Bundle the worker explicitly with `?worker&url` and `setWorkerUrl`. | `vite preview` on the production build: worker loads, canvas renders, console clean |
+| **B-55** | S1 | **The checkpoint table contradicted the map.** It read `point.risk.level`, the level at the *planned* departure, so every level stayed frozen at offset 0 while the map, the route cards and the slider all moved. The same mile of road was reported at two different risk levels. Read the level through `riskAtOffset` like every other consumer. | Table-vs-offset test, verified to fail when reverted to the base level |
 
 **Environment note.** Vite's file watcher hit `ENOSPC` (inotify limit 65,536; cannot raise it here),
 so it served stale transformed modules despite successful typechecks. Restarting with

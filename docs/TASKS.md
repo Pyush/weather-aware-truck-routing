@@ -7,7 +7,7 @@ Nothing here is "done" until its `Done when` line is objectively true.
 
 Totals: **94 tasks** · ~50 h of focused work · 5 % buffer recommended (Phase 8 needs slack).
 
-**Progress: 61 / 94 formally complete (Phases 0–3 plus 12 frontend/quality/doc tasks).**
+**Progress: 63 / 94 formally complete (Phases 0–3 plus 14 frontend/quality/doc tasks).**
 
 Browser QA results are in `docs/QA-CHECKLIST.md`, including the checks still outstanding
 (Firefox/Safari, the real WebGL-absent path, and the 1,000-mile performance case).
@@ -30,7 +30,7 @@ not implemented. `ENOSPC` requires polling for the dev watcher in this environme
 | 1 · Domain core | ✅ complete (BE-10 … BE-29) |
 | 2 · Adapters | ✅ complete (BE-30 … BE-42), validated against the live APIs |
 | 3 · Orchestration + API | ✅ complete (BE-50 … BE-61) — both endpoints verified over HTTP |
-| 4–6 · Frontend | 🔶 most tasks verified; remaining are the checkpoint table, map↔table sync and remaining acceptance criteria |
+| 4–6 · Frontend | 🔶 most tasks verified; remaining are the map heatmap risk-strip and a few acceptance criteria |
 | 7 | 🔶 selector/component/parity/perf/QA done except frame profiling |
 | 8 | ⬜ next |
 
@@ -285,7 +285,7 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [x] **FE-17** Render performance `~45m` → FE-13, FE-15 (slider sweep costs 0 map renders, was 49; map deferred off first paint; 1,000-mile FPS case still open)
   Pre-simplify geometry per zoom (Douglas–Puucker), throttle `setData` to one per animation frame, memoize layer specs, avoid re-creating sources/layers, `requestIdleCallback` for off-screen work.
   **Done when** 1,000-mile route with 120 checkpoints pans at 60 fps on the demo machine; measured numbers in BENCHMARKS.md.
-- [ ] **FE-18** Map ↔ table sync `~30m` → FE-14
+- [x] **FE-18** Map ↔ table sync `~30m` → FE-14 (both directions asserted; keyboard focus drives the same highlight)
   Hovering a table row highlights the map dot and vice versa; selecting a row opens the popup.
   **Done when** both directions work with keyboard focus too.
 
@@ -296,7 +296,7 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [ ] **FE-19** Route comparison cards `~50m` → FE-05
   Rank badge, "Recommended" callout, distance, duration, arrival ETA, severe/no-travel/high miles, avg-risk bar, `why_recommended` bullets (runner-up diff), expandable per-criterion tally ("fastest on 2 of 3"), select/hover states (D17).
   **Done when** the recommended route is visually unmistakable and both explanation forms render from backend output.
-- [ ] **FE-20** Checkpoint table `~45m` → FE-19
+- [x] **FE-20** Checkpoint table `~45m` → FE-19 (sortable with aria-sort, dominant-factor column, windowed above 200 rows; offset bug B-55 fixed)
   Columns: mile, ETA, wind, rain, snow, level chip, dominant factor; sortable; virtualized above 200 rows; column headers state the active spacing.
   **Done when** a 120-checkpoint route scrolls smoothly and the level column matches the map colors.
 - [x] **FE-21** Departure-offset slider (0–48 h) `~50m` → FE-05b

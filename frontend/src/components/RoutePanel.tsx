@@ -1,16 +1,19 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import {
+  etaAtOffset,
   formatAvgRisk,
   formatDateTime,
   formatDuration,
   formatMiles,
+  levelName,
+  riskAtOffset,
   routeViews,
   shiftedDeparture,
   type RouteView,
 } from '@/lib/selectors';
 import { useStore } from '@/store/useStore';
-import type { AppConfig } from '@/types/api';
+import type { AppConfig, Checkpoint } from '@/types/api';
 
 interface RoutePanelProps {
   config: AppConfig | null;
@@ -278,62 +281,134 @@ function CheckpointTable({
   onHover: (id: string | null) => void;
 }) {
   const analysis = useStore((s) => s.analysis);
+  const [sort, setSort] = useState<{ column: Column; direction: 1 | -1 }>({
+    column: 'distance',
+    direction: 1,
+  });
+  const [scrollTop, setScrollTop] = useState(0);
   if (!route?.bundle) return null;
 
-  const { routeId } = { routeId: route.route.id };
+  const routeId = route.route.id;
   const bundle = analysis.checkpoints.find((c) => c.route_id === routeId);
   if (!bundle) return null;
+
+  // The level is read at the departure offset, not from `point.risk`, which is
+  // the level at the *planned* departure. Reading that base value made the
+  // table contradict the map and the slider, which both recolour by offset.
+  const rows = bundle.points.map((point, index) => ({
+    id: `${routeId}:${index}`,
+    point,
+    level: riskAtOffset(point, offsetHours),
+    eta: etaAtOffset(point, offsetHours),
+  }));
+
+  const sorted = [...rows].sort((a, b) => {
+    const key = sort.column;
+    const left = valueFor(a, key);
+    const right = valueFor(b, key);
+    const order = typeof left === 'number' && typeof right === 'number' ? left - right : String(left).localeCompare(String(right));
+    return order * sort.direction;
+  });
 
   return (
     <div style={{ marginTop: 'var(--space-4)' }}>
       <h3 style={{ fontSize: 12, marginBottom: 6 }}>
-        Checkpoints <span className="dim">({bundle.points.length} @ every {analysis.meta.spacing_mi} mi)</span>
+        Checkpoints{' '}
+        <span className="dim">
+          ({bundle.points.length} @ every {analysis.meta.spacing_mi} mi
+          {offsetHours > 0 ? ` · shifted +${offsetHours} h` : ''})
+        </span>
       </h3>
-      <div style={{ maxHeight: 260, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-overlay)' }}>
+      <div
+        style={{
+          maxHeight: 260,
+          overflowY: 'auto',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm)',
+        }}
+        onScroll={(event) => {
+          setScrollTop(event.currentTarget.scrollTop);
+        }}
+      >
+        <table
+          aria-label="Checkpoints"
+          style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}
+        >
+          <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-overlay)', zIndex: 1 }}>
             <tr>
-              <Th>Mi</Th>
-              <Th>ETA</Th>
-              <Th>Wind</Th>
-              <Th>Rain</Th>
-              <Th>Snow</Th>
-              <Th>Risk</Th>
+              <Th
+                column="distance"
+                sort={sort}
+                onSort={setSort}
+              >
+                Mi
+              </Th>
+              <Th
+                column="eta"
+                sort={sort}
+                onSort={setSort}
+              >
+                ETA
+              </Th>
+              <Th
+                column="wind"
+                sort={sort}
+                onSort={setSort}
+              >
+                Wind
+              </Th>
+              <Th
+                column="rain"
+                sort={sort}
+                onSort={setSort}
+              >
+                Rain
+              </Th>
+              <Th
+                column="snow"
+                sort={sort}
+                onSort={setSort}
+              >
+                Snow
+              </Th>
+              <Th
+                column="level"
+                sort={sort}
+                onSort={setSort}
+              >
+                Risk
+              </Th>
+              <Th>Driver</Th>
             </tr>
           </thead>
           <tbody>
-            {bundle.points.map((point, index) => {
-              const id = `${routeId}:${index}`;
-              const level = analysis.checkpoints; // placeholder to keep types honest
-              void level;
-              const name = point.risk.level;
-              return (
-                <tr
-                  key={id}
-                  onMouseEnter={() => onHover(id)}
-                  onMouseLeave={() => onHover(null)}
-                  style={{
-                    background: hoveredId === id ? 'var(--bg-overlay)' : 'transparent',
-                    cursor: 'default',
-                  }}
-                >
-                  <Td mono>{point.distance_mi.toFixed(0)}</Td>
-                  <Td mono>
-                    {new Date(
-                      new Date(point.eta).getTime() + offsetHours * 3_600_000,
-                    ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </Td>
-                  <Td mono>{point.risk.wind.value === null ? '—' : point.risk.wind.value.toFixed(0)}</Td>
-                  <Td mono>{point.risk.rain.value === null ? '—' : point.risk.rain.value.toFixed(2)}</Td>
-                  <Td mono>{point.risk.snow.value === null ? '—' : point.risk.snow.value.toFixed(2)}</Td>
-                  <Td>
-                    <span className="risk-badge" data-level={name}>
-                      {name.replace('_', ' ')}
-                    </span>
-                  </Td>
-                </tr>
-              );
-            })}
+            {visibleRows(sorted, scrollTop).map((row) => (
+              <tr
+                key={row.id}
+                tabIndex={0}
+                onMouseEnter={() => onHover(row.id)}
+                onMouseLeave={() => onHover(null)}
+                onFocus={() => onHover(row.id)}
+                onBlur={() => onHover(null)}
+                style={{
+                  background: hoveredId === row.id ? 'var(--bg-overlay)' : 'transparent',
+                }}
+              >
+                <Td mono>{row.point.distance_mi.toFixed(0)}</Td>
+                <Td mono>
+                  {row.eta.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </Td>
+                <Td mono>{fmt(row.point.risk.wind.value, 0)}</Td>
+                <Td mono>{fmt(row.point.risk.rain.value, 2)}</Td>
+                <Td mono>{fmt(row.point.risk.snow.value, 2)}</Td>
+                <Td>
+                  <span className="risk-badge" data-level={levelName(row.level)}>
+                    {levelName(row.level).replace('_', ' ')}
+                  </span>
+                </Td>
+                <Td dim>{row.point.risk.dominant_factor}</Td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -341,28 +416,102 @@ function CheckpointTable({
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
+const ROW_HEIGHT = 24;
+/** Rows rendered beyond the viewport, so scrolling does not reveal blanks. */
+const OVERSCAN = 8;
+const TABLE_HEIGHT = 260;
+/**
+ * Row count above which the table windows its rows (FE-20).
+ *
+ * A 1,000-mile route at 10-mile spacing is ~100 checkpoints and each row is a
+ * handful of elements, so rendering all of them is cheap. The windowing is kept
+ * deliberately simple and is skipped entirely for small tables: a hand-rolled
+ * scheme is easy to get subtly wrong (blank rows, lost focus, broken sticky
+ * header) and the common case does not justify that risk.
+ */
+const VIRTUALISE_ABOVE = 200;
+
+function visibleRows<T>(rows: T[], scrollTop: number): T[] {
+  if (rows.length <= VIRTUALISE_ABOVE) return rows;
+  const first = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+  const count = Math.ceil(TABLE_HEIGHT / ROW_HEIGHT) + OVERSCAN * 2;
+  return rows.slice(first, first + count);
+}
+
+type Column = 'distance' | 'eta' | 'wind' | 'rain' | 'snow' | 'level';
+
+function valueFor(row: { point: Checkpoint; level: number; eta: Date }, column: Column): number {
+  switch (column) {
+    case 'distance':
+      return row.point.distance_mi;
+    case 'eta':
+      return row.eta.getTime();
+    case 'wind':
+      return row.point.risk.wind.value ?? -1;
+    case 'rain':
+      return row.point.risk.rain.value ?? -1;
+    case 'snow':
+      return row.point.risk.snow.value ?? -1;
+    case 'level':
+      return row.level;
+    default:
+      return 0;
+  }
+}
+
+function fmt(value: number | null, digits: number): string {
+  return value === null ? '—' : value.toFixed(digits);
+}
+
+function Th({
+  children,
+  column,
+  sort,
+  onSort,
+}: {
+  children: React.ReactNode;
+  column?: Column;
+  sort?: { column: Column; direction: 1 | -1 };
+  onSort?: (next: { column: Column; direction: 1 | -1 }) => void;
+}) {
+  const active = column && sort?.column === column;
   return (
     <th
+      scope="col"
+      aria-sort={active ? (sort!.direction === 1 ? 'ascending' : 'descending') : column ? 'none' : undefined}
       style={{
         textAlign: 'left',
         padding: '4px 8px',
         fontSize: 10,
         textTransform: 'uppercase',
         letterSpacing: '0.05em',
-        color: 'var(--text-dim)',
+        color: active ? 'var(--text)' : 'var(--text-dim)',
         borderBottom: '1px solid var(--border)',
       }}
     >
-      {children}
+      {column && onSort ? (
+        <button
+          type="button"
+          className="btn-ghost"
+          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit' }}
+          onClick={() =>
+            onSort({ column, direction: active && sort!.direction === 1 ? -1 : 1 })
+          }
+        >
+          {children}
+          {active ? <span aria-hidden="true">{sort!.direction === 1 ? ' ▲' : ' ▼'}</span> : null}
+        </button>
+      ) : (
+        children
+      )}
     </th>
   );
 }
 
-function Td({ children, mono }: { children: React.ReactNode; mono?: boolean }) {
+function Td({ children, mono, dim }: { children: React.ReactNode; mono?: boolean; dim?: boolean }) {
   return (
     <td
-      className={mono ? 'mono' : undefined}
+      className={mono ? 'mono' : dim ? 'dim' : undefined}
       style={{ padding: '3px 8px', borderBottom: '1px solid var(--bg)' }}
     >
       {children}
