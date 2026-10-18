@@ -6,9 +6,14 @@ Kept because most of them were invisible to the tests that existed at the time �
 
 **Controls that earned their keep.** The FE-02 contract drift check was verified the same way
 as the secret scanner: by corrupting the committed file and confirming the test fails. A guard
-that has never fired is a guess.
+that has never fired is a guess. The render-count guard was checked the same way — reintroducing
+the prop threading made it report 49 renders instead of 0.
 
-Status: Phases 0–3 complete; frontend verification in progress. **52 defects recorded, 0 open**
+**Why the last two mattered most.** B-53 and B-54 were both invisible to the dev server: the
+render claim was asserted in a docstring rather than measured, and the worker bug only appears
+in a production bundle. "It works on the dev server" is not the same claim as "it works".
+
+Status: Phases 0–3 complete; frontend verification in progress. **54 defects recorded, 0 open**
 (remaining QA tracked separately).
 
 ---
@@ -323,6 +328,8 @@ alternatives and the via-waypoint synthesis produced the third, correctly tagged
 | **B-50** | S3 | Route option rows wrapped mid-value ("473 mi · 10h / 39m"), and a `nowrap` label let the risk badge stretch to a third full-width line. Grid areas fix both. | Screenshot at 1000 px |
 | **B-51** | S3 | Route cards announced as "Option A473 mi · 10h 39m2.5NO TR" to a screen reader: adjacent spans concatenate with no separator. Gave each card an explicit `aria-label` and a live summary. | Keyboard traversal + computed labels |
 | **B-52** | S3 | `--text-dim` measured **3.93:1** against the panel background, below the WCAG AA 4.5:1 floor, and it carries most of the 10–11 px helper text. Raised to `#7b8aab` (4.90:1). | Measured contrast ratio in the browser |
+| **B-53** | S1 | **The claimed slider smoothness was false.** `offsetHours` was passed to `MapView` as a prop, so each of the 49 offset values re-rendered the component holding the WebGL context — 49 renders, not 0. `App` no longer subscribes to the offset; `MapView` subscribes imperatively and repaints via `setData`. | Render-count test, verified to fail at 49 when the prop threading is reintroduced |
+| **B-54** | S1 | **Production build could not render a map.** MapLibre resolves its worker relative to its own module; Vite rewrites that module into `/assets/maplibre-<hash>.js`, so the worker URL 404s and the SPA fallback returns HTML, failing MIME checks. Invisible in dev, where pre-bundling is excluded for MapLibre. Bundle the worker explicitly with `?worker&url` and `setWorkerUrl`. | `vite preview` on the production build: worker loads, canvas renders, console clean |
 
 **Environment note.** Vite's file watcher hit `ENOSPC` (inotify limit 65,536; cannot raise it here),
 so it served stale transformed modules despite successful typechecks. Restarting with

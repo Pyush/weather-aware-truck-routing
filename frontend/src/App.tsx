@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 
 import { ApiError, fetchConfig, streamAnalysis } from '@/lib/api';
 import { buildUrlSearch, parseUrlState } from '@/lib/urlState';
@@ -10,15 +10,25 @@ import { EmptyState } from '@/components/EmptyState';
 import { RoutePanel } from '@/components/RoutePanel';
 import { ForecastSlider } from '@/components/ForecastSlider';
 import { MethodologyModal } from '@/components/MethodologyModal';
-import { MapView } from '@/components/MapView';
 import { RiskLegend } from '@/components/RiskLegend';
+
+/**
+ * MapLibre is ~1 MB, and nothing about the form or the route comparison needs
+ * it. Loaded on demand so the first paint ships the app, not the renderer; the
+ * placeholder below occupies the same space, so there is no layout shift.
+ */
+const MapView = lazy(() =>
+  import('@/components/MapView').then((module) => ({ default: module.MapView })),
+);
 
 export default function App() {
   const phase = useStore((s) => s.phase);
   const analysis = useStore((s) => s.analysis);
   const config = useStore((s) => s.config);
   const error = useStore((s) => s.error);
-  const offsetHours = useStore((s) => s.offsetHours);
+  // `offsetHours` is deliberately NOT subscribed here. Each component that needs
+  // it subscribes itself, so a slider tick does not re-render the whole shell
+  // (and with it the map, which owns a WebGL context). See MapView.
   const selectedRouteId = useStore((s) => s.selectedRouteId);
   const showHeatmap = useStore((s) => s.showHeatmap);
   const showCheckpoints = useStore((s) => s.showCheckpoints);
@@ -216,19 +226,44 @@ const [copied, setCopied] = useState(false);
           <RoutePanel config={config} />
         </aside>
 
-        <MapView
-          analysis={analysis}
-          config={config}
-          selectedRouteId={selectedRouteId}
-          offsetHours={offsetHours}
-          showHeatmap={showHeatmap}
-          showCheckpoints={showCheckpoints}
-          onSelectRoute={selectRoute}
-          onHoverCheckpoint={hoverCheckpoint}
-        />
+        <div className="map-wrap">
+          {/* Mounted only once there is something to draw. An empty map is a
+              1 MB download the user gets no value from; they get it as soon as
+              they ask for routes, by which point they are waiting anyway. */}
+          {analysis.routes.length > 0 ? (
+            <Suspense fallback={<MapPlaceholder />}>
+              <MapView
+                analysis={analysis}
+                config={config}
+                selectedRouteId={selectedRouteId}
+                showHeatmap={showHeatmap}
+                showCheckpoints={showCheckpoints}
+                onSelectRoute={selectRoute}
+                onHoverCheckpoint={hoverCheckpoint}
+              />
+            </Suspense>
+          ) : (
+            <MapPlaceholder />
+          )}
+        </div>
       </div>
 
       {showMethodology && <MethodologyModal config={config} onClose={closeMethodology} />}
+    </div>
+  );
+}
+
+/** Holds the map's space while the 1 MB renderer loads. */
+function MapPlaceholder() {
+  return (
+    <div
+      className="map-wrap"
+      role="status"
+      style={{ display: 'grid', placeItems: 'center' }}
+    >
+      <span className="dim" style={{ fontSize: 12 }}>
+        Loading map…
+      </span>
     </div>
   );
 }

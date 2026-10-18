@@ -30,7 +30,6 @@ interface MapViewProps {
   /** Rule configuration, for the map's colour palette. */
   config: AppConfig | null;
   selectedRouteId: string | null;
-  offsetHours: number;
   showHeatmap: boolean;
   showCheckpoints: boolean;
   onSelectRoute: (routeId: string | null) => void;
@@ -41,7 +40,6 @@ export function MapView({
   analysis,
   config,
   selectedRouteId,
-  offsetHours,
   showHeatmap,
   showCheckpoints,
   onSelectRoute,
@@ -55,8 +53,8 @@ export function MapView({
 
   // Keep the latest state in a ref so layer setup can read it without being
   // torn down and rebuilt on every slider tick.
-  const latest = useRef({ analysis, selectedRouteId, offsetHours, showHeatmap, showCheckpoints, config });
-  latest.current = { analysis, selectedRouteId, offsetHours, showHeatmap, showCheckpoints, config };
+  const latest = useRef({ analysis, selectedRouteId, showHeatmap, showCheckpoints, config });
+  latest.current = { analysis, selectedRouteId, showHeatmap, showCheckpoints, config };
 
   const onSelectRouteRef = useRef(onSelectRoute);
   onSelectRouteRef.current = onSelectRoute;
@@ -73,7 +71,11 @@ export function MapView({
   const syncSources = useCallback(() => {
     const m = map.current;
     if (!m || !ready.current) return;
-    const { analysis: a, selectedRouteId: selected, offsetHours: offset } = latest.current;
+    const { analysis: a, selectedRouteId: selected } = latest.current;
+    // Read the offset imperatively. A selector hook would re-render this
+    // component on every slider tick, and this is the one holding a WebGL
+    // context; `setData` needs no render at all (FE-17/FE-33).
+    const offset = useStore.getState().offsetHours;
     if (a.routes.length === 0) return;
 
     const activeId = selected ?? a.routes[0]?.id ?? null;
@@ -251,11 +253,15 @@ export function MapView({
     fit(null);
   }
 
-  // Sync data whenever the analysis or the offset changes. The offset tick only
-  // touches two small sources, so dragging stays smooth.
+  // Sync data whenever the analysis or the layer toggles change.
   useEffect(() => {
     syncSources();
-  }, [analysis, selectedRouteId, offsetHours, showHeatmap, showCheckpoints, syncSources]);
+  }, [analysis, selectedRouteId, showHeatmap, showCheckpoints, syncSources]);
+
+  // The departure offset drives a repaint of two small sources and nothing
+  // else. Subscribed imperatively so dragging the slider repaints the map
+  // without re-rendering the component that owns the WebGL context.
+  useEffect(() => useStore.subscribe(syncSources), [syncSources]);
 
   // Fit once, when routes first arrive.
   useEffect(() => {
@@ -351,10 +357,12 @@ export function MapView({
       ) : (
         <>
           <MapControls onFitAll={fitAll} onFitRoute={() => fit(selectedRouteId)} />
+          {/* Mounted only while hovering, so the offset subscription below is
+              live only during a hover -- and a hover is exactly when a shifted
+              ETA needs to be correct. */}
           <CheckpointTooltip
             analysis={analysis}
             selectedRouteId={selectedRouteId ?? analysis.routes[0]?.id ?? null}
-            offsetHours={offsetHours}
           />
         </>
       )}
@@ -412,13 +420,12 @@ function MapControls({
 function CheckpointTooltip({
   analysis,
   selectedRouteId,
-  offsetHours,
 }: {
   analysis: Analysis;
   selectedRouteId: string | null;
-  offsetHours: number;
 }) {
   const hoveredId = useStoreValue('hoveredCheckpointId');
+  const offsetHours = useStore((s) => s.offsetHours);
   if (!hoveredId || !selectedRouteId) return null;
   const bundle = analysis.checkpoints.find((c) => c.route_id === selectedRouteId);
   const index = Number(hoveredId.split(':')[1]);

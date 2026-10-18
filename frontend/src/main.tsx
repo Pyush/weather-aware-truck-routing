@@ -1,6 +1,18 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { setWorkerUrl } from 'maplibre-gl';
+
+// MapLibre locates its worker relative to its own module (`new URL('./…',
+// import.meta.url)`). That works when the package ships unbundled, but Vite
+// rewrites the module into `/assets/maplibre-<hash>.js`, so the worker lookup
+// 404s -- and the SPA fallback answers with HTML, which fails MIME checking.
+// `?worker&url` bundles the worker (resolving its own imports) and returns a
+// URL that exists in `dist`. Dev never showed this: Vite's pre-bundling is
+// excluded for MapLibre, so the real dist path resolves there.
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+
+setWorkerUrl(maplibreWorkerUrl);
 
 import App from '@/App';
 import '@/index.css';

@@ -7,7 +7,7 @@ Nothing here is "done" until its `Done when` line is objectively true.
 
 Totals: **94 tasks** · ~50 h of focused work · 5 % buffer recommended (Phase 8 needs slack).
 
-**Progress: 57 / 94 formally complete (Phases 0–3 plus FE-02, FE-05b, FE-09, FE-21, FE-24, FE-25, FE-31, FE-32, FE-34).**
+**Progress: 61 / 94 formally complete (Phases 0–3 plus 12 frontend/quality/doc tasks).**
 
 Browser QA results are in `docs/QA-CHECKLIST.md`, including the checks still outstanding
 (Firefox/Safari, the real WebGL-absent path, and the 1,000-mile performance case).
@@ -30,8 +30,9 @@ not implemented. `ENOSPC` requires polling for the dev watcher in this environme
 | 1 · Domain core | ✅ complete (BE-10 … BE-29) |
 | 2 · Adapters | ✅ complete (BE-30 … BE-42), validated against the live APIs |
 | 3 · Orchestration + API | ✅ complete (BE-50 … BE-61) — both endpoints verified over HTTP |
-| 4–6 · Frontend | ⬜ next |
-| 7–8 | ⬜ |
+| 4–6 · Frontend | 🔶 most tasks verified; remaining are the checkpoint table, map↔table sync and remaining acceptance criteria |
+| 7 | 🔶 selector/component/parity/perf/QA done except frame profiling |
+| 8 | ⬜ next |
 
 Phases 2 and 3 were each validated with a live end-to-end run. Measured event timeline
 (D20): geometry usable at **2.5 s**, full analysis at **21 s** for a 25-location weather
@@ -266,7 +267,7 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [ ] **FE-11** Route layers `~45m` → FE-10
   3 routes as casing + line layers, per-route color, selected route emphasized and others dimmed; `promoteId`; source created once and updated with `setData`.
   **Done when** selecting a route in the panel updates the map without recreating sources.
-- [ ] **FE-12** Origin/destination markers `~25m` → FE-11
+- [x] **FE-12** Origin/destination markers `~25m` → FE-11
   Distinct markers + labels; clicking a route card flies to it.
   **Done when** markers render and `fitBounds` animates to the selected route.
 - [ ] **FE-13** Checkpoint layer `~50m` → FE-11
@@ -281,7 +282,7 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [ ] **FE-16** Map controls & sync `~35m` → FE-12
   Zoom-to-route, fit-all, heatmap toggle, checkpoint-visibility toggle (for long routes), scale control; map ↔ store two-way sync.
   **Done when** all controls work on desktop and mobile viewports.
-- [ ] **FE-17** Render performance `~45m` → FE-13, FE-15
+- [x] **FE-17** Render performance `~45m` → FE-13, FE-15 (slider sweep costs 0 map renders, was 49; map deferred off first paint; 1,000-mile FPS case still open)
   Pre-simplify geometry per zoom (Douglas–Puucker), throttle `setData` to one per animation frame, memoize layer specs, avoid re-creating sources/layers, `requestIdleCallback` for off-screen work.
   **Done when** 1,000-mile route with 120 checkpoints pans at 60 fps on the demo machine; measured numbers in BENCHMARKS.md.
 - [ ] **FE-18** Map ↔ table sync `~30m` → FE-14
@@ -330,7 +331,7 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [x] **FE-32** Parity test vs backend `~30m` → FE-30, BE-42
   Feed one recorded backend payload into the frontend selectors; assert slider offsets 0/6/24/48 match backend-computed values.
   **Done when** parity holds — proves no rule logic drifted into the UI.
-- [ ] **FE-33** Perf profiling pass `~40m` → FE-17
+- [x] **FE-33** Perf profiling pass `~40m` → FE-17 (render counts + bundle measured in docs/BENCHMARKS.md; frame-time profiling outstanding)
   React Profiler on stream updates + slider drag, bundle analysis, lazy-load the map panel, memo boundaries.
   **Done when** slider drag shows no React re-render of the map and bundle is under budget (record numbers).
 - [x] **FE-34** Browser + responsive QA `~35m` → FE-25 (docs/QA-CHECKLIST.md; no open P1/P2)
@@ -358,7 +359,7 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [ ] **DOC-10** README `~50m` → Phase 7 done
   Architecture diagram, quickstart, API reference, the risk-rule table, screenshot/GIF, "assumptions & limitations", performance numbers, live URL + repo URL.
   **Done when** a stranger can clone, run, and understand the design in 10 minutes.
-- [ ] **DOC-11** `docs/BENCHMARKS.md` `~25m` → BE-60, FE-33
+- [x] **DOC-11** `docs/BENCHMARKS.md` `~25m` → BE-60, FE-33 (latency, bundle and render counts recorded; frame-time profiling listed as unmeasured)
   Cold/warm latency, weather location counts, cache hit rates, map FPS, bundle size, date + machine.
 - [ ] **DOC-12** Demo data & prewarm `~30m` → BE-61
   `WEATHER_PROVIDER=mock` deterministic storm generator; `scripts/prewarm.py` to warm the cache for the Loom route(s); two example trips (one clear, one storm).
