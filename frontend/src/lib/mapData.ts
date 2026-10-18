@@ -207,3 +207,129 @@ export function boundsFor(analysis: Analysis): [number, number, number, number] 
   }
   return [west, south, east, north];
 }
+
+// ---------------------------------------------------------------------------
+// Risk strip (FE-15)
+// ---------------------------------------------------------------------------
+
+/** Great-circle distance in miles between two `[lon, lat]` points. */
+function haversineMiles(a: [number, number], b: [number, number]): number {
+  const R = 3958.7613;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(b[1] - a[1]);
+  const dLon = toRad(b[0] - a[0]);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a[1])) * Math.cos(toRad(b[1])) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/** Total great-circle length of a geometry, in miles. */
+function geometryMiles(geometry: [number, number][]): number {
+  let total = 0;
+  for (let i = 1; i < geometry.length; i += 1) {
+    total += haversineMiles(geometry[i - 1], geometry[i]);
+  }
+  return total;
+}
+
+/**
+ * Cumulative fraction along a geometry for each vertex.
+ *
+ * MapLibre's `line-progress` runs 0..1 along the drawn line, so a checkpoint's
+ * position on the gradient has to be expressed as a fraction of the *geometry's*
+ * length -- not of the checkpoint count, which is only even if the road bends
+ * that way.
+ */
+export function lineProgress(geometry: [number, number][]): number[] {
+  if (geometry.length < 2) return geometry.map(() => 0);
+  const cumulative: number[] = [0];
+  for (let i = 1; i < geometry.length; i += 1) {
+    cumulative.push(cumulative[i - 1] + haversineMiles(geometry[i - 1], geometry[i]));
+  }
+  const total = cumulative[cumulative.length - 1] || 1;
+  return cumulative.map((d) => d / total);
+}
+
+/** A single `line-gradient` stop: a fraction along the line, and its level. */
+export interface RiskStop {
+  progress: number;
+  level: RiskLevel;
+}
+
+/**
+ * Gradient stops for one route at a departure offset.
+ *
+ * Each checkpoint contributes a stop at its position along the line, coloured
+ * by the level the truck meets there at `offsetHours`. Stop positions are
+ * merged when two checkpoints land on the same fraction, otherwise a road
+ * doubling back on itself would produce stops out of order and MapLibre would
+ * silently drop the malformed expression.
+ */
+export function riskStripStops(
+  bundle: CheckpointBundle | undefined,
+  geometry: [number, number][],
+  offsetHours: number,
+): RiskStop[] {
+  if (!bundle || bundle.points.length === 0 || geometry.length < 2) return [];
+
+  const fractions = lineProgress(geometry);
+  // Both are miles, so a checkpoint's road distance maps straight onto a
+  // fraction of the drawn line.
+  const lastFraction = fractions[fractions.length - 1] || 1;
+  const roadToFraction = (distanceMi: number): number =>
+    Math.min(1, Math.max(0, distanceMi * lastFraction / (geometryMiles(geometry) || 1)));
+
+  const byProgress = new Map<number, RiskLevel>();
+  for (const point of bundle.points) {
+    const snapped = nearestStop(fractions, roadToFraction(point.distance_mi));
+    byProgress.set(snapped, riskAtOffset(point, offsetHours));
+  }
+
+  // MapLibre requires strictly ascending stops.
+  return [...byProgress.entries()]
+    .map(([progress, level]) => ({ progress, level }))
+    .sort((a, b) => a.progress - b.progress)
+    .filter(
+      (stop, index, all) => index === 0 || stop.progress > all[index - 1].progress,
+    );
+}
+
+/** Nearest vertex fraction, snapped to 3 decimals so stops can be deduped. */
+function nearestStop(cumulativeFractions: number[], target: number): number {
+  let best = cumulativeFractions[0];
+  let bestDelta = Math.abs(best - target);
+  for (const candidate of cumulativeFractions) {
+    const delta = Math.abs(candidate - target);
+    if (delta < bestDelta) {
+      best = candidate;
+      bestDelta = delta;
+    }
+  }
+  return Number(best.toFixed(3));
+}
+
+/**
+ * The selected route's centreline, for the graduated risk strip (FE-15).
+ *
+ * A dedicated collection rather than reusing `routes`: `line-gradient` needs
+ * `lineMetrics`, and enabling it on the shared source would disable line
+ * simplification for all three routes. Paying that cost to colour one of them
+ * would slow down the lines that matter most.
+ */
+export function buildRiskStripCollection(route: RouteOption | undefined): FeatureCollection {
+  if (!route || route.geometry.length < 2) {
+    return { type: 'FeatureCollection', features: [] };
+  }
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        id: route.id,
+        properties: { id: route.id },
+        geometry: { type: 'LineString', coordinates: route.geometry },
+      },
+    ],
+  };
+}

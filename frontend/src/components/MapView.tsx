@@ -14,11 +14,13 @@ import {
   buildCheckpointsCollection,
   buildCorridorCollection,
   buildEndpointsCollection,
+  buildRiskStripCollection,
   buildRoutesCollection,
+  riskStripStops,
 } from '@/lib/mapData';
 import { formatDateTime, etaAtOffset } from '@/lib/selectors';
 import { useStore } from '@/store/useStore';
-import type { Analysis, AppConfig } from '@/types/api';
+import { RiskLevel, type Analysis, type AppConfig, type CheckpointBundle, type RouteOption } from '@/types/api';
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 
@@ -50,11 +52,14 @@ export function MapView({
   const ready = useRef(false);
   const fittedRoute = useRef<string | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
+  // Subscribed rather than passed as a prop: a layer toggle is local UI state,
+  // and threading it through `App` would re-render the shell with the map.
+  const showRiskStrip = useStore((s) => s.showRiskStrip);
 
   // Keep the latest state in a ref so layer setup can read it without being
   // torn down and rebuilt on every slider tick.
-  const latest = useRef({ analysis, selectedRouteId, showHeatmap, showCheckpoints, config });
-  latest.current = { analysis, selectedRouteId, showHeatmap, showCheckpoints, config };
+  const latest = useRef({ analysis, selectedRouteId, showHeatmap, showCheckpoints, showRiskStrip, config });
+  latest.current = { analysis, selectedRouteId, showHeatmap, showCheckpoints, showRiskStrip, config };
 
   const onSelectRouteRef = useRef(onSelectRoute);
   onSelectRouteRef.current = onSelectRoute;
@@ -83,6 +88,8 @@ export function MapView({
     const bundle = a.checkpoints.find((c) => c.route_id === route.id);
 
     geoSource('routes')?.setData(buildRoutesCollection(a));
+    geoSource('risk-strip')?.setData(buildRiskStripCollection(route));
+    updateRiskStrip(m, bundle, route, offset, latest.current.config, showRiskStrip);
     geoSource('endpoints')?.setData(buildEndpointsCollection(a));
     geoSource('checkpoints')?.setData(buildCheckpointsCollection(bundle, route, offset));
     geoSource('corridor')?.setData(buildCorridorCollection(bundle, route, offset));
@@ -93,7 +100,7 @@ export function MapView({
     m.setPaintProperty('route-line', 'line-opacity', ['case', isActive, 1, 0.5]);
     m.setPaintProperty('route-line', 'line-width', ['case', isActive, 4.5, 2.5]);
     m.setPaintProperty('checkpoints', 'circle-opacity', activeId ? 0.95 : 0);
-  }, [geoSource]);
+  }, [geoSource, showRiskStrip]);
 
   // Create the map once.
   useEffect(() => {
@@ -126,6 +133,14 @@ export function MapView({
       m.addSource('routes', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       m.addSource('endpoints', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       m.addSource('checkpoints', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      // `lineMetrics` is required for `line-gradient`. It costs line
+      // simplification, which is why this is a separate source carrying only
+      // the selected route.
+      m.addSource('risk-strip', {
+        type: 'geojson',
+        lineMetrics: true,
+        data: { type: 'FeatureCollection', features: [] },
+      });
 
       // Heatmap sits beneath the lines so the corridor stays readable.
       m.addLayer({
@@ -212,6 +227,25 @@ export function MapView({
         },
       });
 
+      m.addLayer({
+        id: 'risk-strip',
+        type: 'line',
+        source: 'risk-strip',
+        layout: {
+          'line-cap': 'butt',
+          'line-join': 'round',
+          // Added last, so it sits above the route lines: the gradient is the
+          // risk readout, and it is the thing a driver is looking for. Under a
+          // 3-4.5px line it is simply invisible.
+          visibility: 'none',
+        },
+        paint: {
+          'line-width': ['interpolate', ['linear'], ['zoom'], 4, 2, 10, 5],
+          'line-opacity': 0.95,
+          'line-gradient': ['interpolate', ['linear'], ['line-progress'], 0, '#16a34a', 1, '#16a34a'],
+        },
+      });
+
       ready.current = true;
       syncSources();
       fitAll();
@@ -256,7 +290,7 @@ export function MapView({
   // Sync data whenever the analysis or the layer toggles change.
   useEffect(() => {
     syncSources();
-  }, [analysis, selectedRouteId, showHeatmap, showCheckpoints, syncSources]);
+  }, [analysis, selectedRouteId, showHeatmap, showCheckpoints, showRiskStrip, syncSources]);
 
   // The departure offset drives a repaint of two small sources and nothing
   // else. Subscribed imperatively so dragging the slider repaints the map
@@ -379,6 +413,7 @@ function MapControls({
 }) {
   const showHeatmap = useStoreFlag('showHeatmap', 'toggleHeatmap');
   const showCheckpoints = useStoreFlag('showCheckpoints', 'toggleCheckpoints');
+  const showRiskStrip = useStoreFlag('showRiskStrip', 'toggleRiskStrip');
 
   return (
     <div
@@ -412,6 +447,14 @@ function MapControls({
         aria-pressed={showCheckpoints.value}
       >
         {showCheckpoints.value ? 'Hide checkpoints' : 'Show checkpoints'}
+      </button>
+      <button
+        className="btn"
+        onClick={showRiskStrip.toggle}
+        type="button"
+        aria-pressed={showRiskStrip.value}
+      >
+        {showRiskStrip.value ? 'Hide risk strip' : 'Show risk strip'}
       </button>
     </div>
   );
@@ -479,7 +522,10 @@ function Reading({ label, value, unit }: { label: string; value: number | null; 
   );
 }
 
-function useStoreFlag(key: 'showHeatmap' | 'showCheckpoints', toggleKey: 'toggleHeatmap' | 'toggleCheckpoints') {
+function useStoreFlag(
+  key: 'showHeatmap' | 'showCheckpoints' | 'showRiskStrip',
+  toggleKey: 'toggleHeatmap' | 'toggleCheckpoints' | 'toggleRiskStrip',
+) {
   const value = useStore((s) => s[key]);
   const toggle = useStore((s) => s[toggleKey]);
   return { value, toggle };
@@ -487,4 +533,55 @@ function useStoreFlag(key: 'showHeatmap' | 'showCheckpoints', toggleKey: 'toggle
 
 function useStoreValue<K extends 'hoveredCheckpointId'>(key: K) {
   return useStore((s) => s[key]);
+}
+
+/**
+ * Repaint the graduated risk strip (FE-15).
+ *
+ * MapLibre cannot resolve CSS custom properties in a paint expression, so the
+ * colours come from `/config/` as literal hex, the same as the checkpoint dots.
+ * The gradient is rebuilt from the checkpoint levels at the current offset,
+ * which is why dragging the slider repaints it.
+ */
+function updateRiskStrip(
+  map: MapLibreMap,
+  bundle: CheckpointBundle | undefined,
+  route: RouteOption,
+  offsetHours: number,
+  config: AppConfig | null,
+  visible: boolean,
+): void {
+  if (!map.getLayer('risk-strip')) return;
+  map.setLayoutProperty('risk-strip', 'visibility', visible ? 'visible' : 'none');
+  if (!visible) return;
+
+  const stops = riskStripStops(bundle, route.geometry, offsetHours);
+  const color = (level: RiskLevel) => levelColor(config, level);
+
+  if (stops.length < 2) {
+    // A single stop has no gradient; fall back to a flat, honest colour rather
+    // than emitting a malformed expression MapLibre would reject.
+    const level = stops[0]?.level ?? RiskLevel.LOW;
+    map.setPaintProperty('risk-strip', 'line-gradient', [
+      'interpolate',
+      ['linear'],
+      ['line-progress'],
+      0,
+      color(level),
+      1,
+      color(level),
+    ] as ExpressionSpecification);
+    return;
+  }
+
+  const expression: unknown[] = ['interpolate', ['linear'], ['line-progress']];
+  for (const stop of stops) {
+    expression.push(stop.progress, color(stop.level));
+  }
+  map.setPaintProperty('risk-strip', 'line-gradient', expression as ExpressionSpecification);
+}
+
+/** Hex for a level, from the server palette; a neutral fallback before it loads. */
+function levelColor(config: AppConfig | null, level: RiskLevel): string {
+  return config?.levels.find((l) => l.value === level)?.hex ?? '#64748b';
 }

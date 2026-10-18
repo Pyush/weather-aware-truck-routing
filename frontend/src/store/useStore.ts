@@ -38,6 +38,7 @@ interface AppState {
   hoveredCheckpointId: string | null;
   showHeatmap: boolean;
   showCheckpoints: boolean;
+  showRiskStrip: boolean;
 
   // --- actions ---
   setField: <K extends keyof AppState>(key: K, value: AppState[K]) => void;
@@ -51,6 +52,7 @@ interface AppState {
   hoverCheckpoint: (id: string | null) => void;
   toggleHeatmap: () => void;
   toggleCheckpoints: () => void;
+  toggleRiskStrip: () => void;
   reset: () => void;
 }
 
@@ -87,6 +89,9 @@ export const useStore = create<AppState>((set, get) => ({
   hoveredCheckpointId: null,
   showHeatmap: true,
   showCheckpoints: true,
+  // Off by default: the strip is a detail for a driver studying the corridor,
+  // and three overlapping overlays at once is noise rather than information.
+  showRiskStrip: false,
 
   setField: (key, value) => set({ [key]: value } as Partial<AppState>),
 
@@ -263,6 +268,7 @@ export const useStore = create<AppState>((set, get) => ({
   hoverCheckpoint: (id) => set({ hoveredCheckpointId: id }),
   toggleHeatmap: () => set((s) => ({ showHeatmap: !s.showHeatmap })),
   toggleCheckpoints: () => set((s) => ({ showCheckpoints: !s.showCheckpoints })),
+  toggleRiskStrip: () => set((s) => ({ showRiskStrip: !s.showRiskStrip })),
 
   reset: () =>
     set({

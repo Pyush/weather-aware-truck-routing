@@ -29,6 +29,8 @@ checklist with no findings is not evidence.
 | Slider 0 → 48 h updates numbers with **zero** network requests | ✓ |
 | Slider reset button returns to the planned departure | ✓ |
 | Route card click selects; map emphasises it | ✓ |
+| Heatmap tracks risk along the corridor and updates with the slider | ✓ |
+| Graduated risk strip legible against the route line | **✗ unverified** — toggles cleanly, but the gradient does not read clearly on top of the route centreline (FE-15 left open) |
 | Heatmap and checkpoint toggles work | ✓ |
 | Methodology modal opens and closes | ✓ — found B-40, fixed |
 | Empty state offers example trips and populates the form | ✓ |
@@ -63,6 +65,7 @@ checklist with no findings is not evidence.
   `ReadableStream` and `showModal`, both long-standing, but this is unverified).
 - WebGL-absent path exercised in a real browser (jsdom cannot create a context).
 - 1,000-mile route with 120 checkpoints at 60 fps — FE-17/FE-33, needs the perf pass.
+- Legibility of the graduated risk strip at default zoom (FE-15).
 - Print stylesheet.
 
 ## Open issues

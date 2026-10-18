@@ -10,9 +10,10 @@ Totals: **94 tasks** · ~50 h of focused work · 5 % buffer recommended (Phase 8
 **Progress: 85 / 94 formally complete.**
 
 The 9 remaining are the ones that need something this environment cannot
-provide or that are optional by design: BE-43/44/45 (opt-in live-API smoke and
-two alternate providers), FE-15 (the gradient risk strip alongside the
-heatmap), FE-35 (Playwright, marked stretch), OPS-00 (local `up`/`down` targets
+provide or that are optional by design: BE-44/45 (alternate providers, dropped — they
+need API keys and could not be verified live),
+FE-15 (risk strip built but its legibility is
+unverified), FE-35 (Playwright, marked stretch), OPS-00 (local `up`/`down` targets
 are covered by `make dev` instead), OPS-12 (public deploy — needs an account and
 credentials), and DOC-12/13/14 (demo prewarm, Loom script, rubric walkthrough).
 
@@ -191,8 +192,10 @@ also surfaced the average-risk noise flaw fixed in D18.
 
 ### Phase 2 stretch (only if time remains)
 
-- [ ] **BE-44** Mapbox Directions adapter behind `ROUTING_PROVIDER=mapbox` `~40m` → BE-35
-- [ ] **BE-45** OpenWeatherMap adapter behind `WEATHER_PROVIDER=owm` `~40m` → BE-38
+- [~] **BE-44** Mapbox Directions adapter behind `ROUTING_PROVIDER=mapbox` `~40m` → BE-35
+  **Dropped deliberately.** A second routing provider proves the `Router` protocol is real, but MapBox needs an API key, so it could only be written unrun — and shipping an adapter that has never called the service it wraps is how B-54 and B-57 happened. The protocol is already exercised by the mock provider and the OSRM stub.
+- [~] **BE-45** OpenWeatherMap adapter behind `WEATHER_PROVIDER=owm` `~40m` → BE-38
+  **Dropped deliberately**, for the same reason as BE-44: it needs a key, so it could not be verified against the live service. Worse here, because an OWM adapter would not share Open-Meteo's unit conventions, and D15 (snow as depth) is the kind of claim that has to be measured live rather than assumed.
 
 ---
 
@@ -284,7 +287,8 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [x] **FE-14** Checkpoint interaction `~40m` → FE-13
   Hover/click → popup with wind/rain/snow values, level chip, dominant factor, ETA, mile marker, and the rule text that produced the level; hover syncs to the table (FE-18).
   **Done when** tooltip content matches the backend `reasons[]` for a fixture checkpoint. — verified: tooltip shows backend reasons[], readings, level and mile marker.
-- [ ] **FE-15** Corridor heatmap `~50m` → FE-11
+- [~] **FE-15** Corridor heatmap `~50m` → FE-11
+  Heatmap: done and verified. Graduated `line-gradient` risk strip: implemented, unit-tested (8 cases: ascending stops, offset response, degenerate geometry) and toggles without console errors — but **not** visually confirmed as reading clearly against the route line, which is the actual criterion. Two known costs: it needs a dedicated `lineMetrics` source (enabling it on the shared source would disable line simplification for all three routes), and it paints risk over the route centreline, so it competes with the checkpoint dots. Left open deliberately rather than checked on an unverified claim.
   MapLibre `heatmap` layer over risk-weighted corridor segments (`weight` = level score), plus a toggleable graduated `line-gradient` "risk strip"; heatmap density/radius tuned per zoom.
   **Done when** heatmap intensity visibly tracks risk along the corridor and updates with the slider.
 - [x] **FE-16** Map controls & sync `~35m` → FE-12

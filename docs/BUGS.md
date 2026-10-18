@@ -20,7 +20,7 @@ logic error, and not one of them would have been caught by another unit test. Th
 only by `docker compose up` and looking at what came back.
 
 Status: Phases 0–8 implemented and verified against the running stack.
-**62 defects recorded, 0 open**
+**63 defects recorded, 0 open**
 (remaining QA tracked separately).
 
 ---
@@ -356,6 +356,26 @@ thing is worse than no test, because it reports a problem that is not there.
 | **B-60** | S2 | The network guard was written as an autouse fixture inside a test module, which applies **only to that module**. A test in any other file was free to call a live API — verified by planting one: it dialled out and timed out instead of being blocked. Moved to `conftest.py`, where it covers the whole suite and exempts `integration`-marked tests. | Deliberate violation now fails in 0.03 s |
 | **B-61** | S3 | Asserted the weather series length `== window.hours`. The provider is asked for whole days and returns a superset (72 h for a 57 h window) — which is correct, because `build_hourly_risk` indexes in with `window.index_of`. Asserted *coverage* instead. | Live test green |
 | **B-62** | S3 | Asserted `times == sorted(times)` to prove the hours ascend. `times` is a tuple and `sorted()` returns a list, so the comparison was **always False** — the test would have failed on correct data forever, and the obvious "fix" would have been to delete the assertion. Compare as a sequence. | Live test green |
+
+---
+
+## FE-15 — the graduated risk strip
+
+| ID | Severity | Finding | Correction |
+|---|---|---|---|
+| **B-63** | S2 | `line-gradient` silently failed with *"specifies a line-gradient, which requires a GeoJSON source with `lineMetrics` enabled"*. Sharing the `routes` source would have worked but disables line simplification for all three routes to colour one, so it got a dedicated source carrying only the selected route. | Layer renders with a clean console |
+
+**A false alarm worth recording.** Twice I captured screenshots showing a map with
+no routes and no tiles, and twice I started fixing a bug that did not exist:
+`browser.wait('load')` resolves on the *page* load, not on MapLibre finishing its
+style and tiles, so the captures were simply early. Instrumenting `syncSources`
+proved it was being called with `ready: true` and three routes both times. I
+removed the diagnostic *and* the belt-and-braces `idle` retry I had added on the
+false premise, because a change justified by a bug that never happened is still
+an unjustified change.
+
+The lesson generalises: "the screenshot is wrong" is a hypothesis, not a
+finding. Instrument before you edit.
 
 **On the guards.** Both controls here were verified by making them fail, which
 is the only way to know a control works: the network guard by planting a test
