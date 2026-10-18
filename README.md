@@ -77,6 +77,9 @@ by a test. Adapters sit behind protocols, so the mock weather provider and the
 real one are interchangeable — which is what makes the whole suite runnable with
 no network.
 
+For deployment and component diagrams, event flow, cache behavior, and browser
+state boundaries, see [the detailed architecture](docs/ARCHITECTURE.md).
+
 | Path | What lives there |
 |---|---|
 | `backend/tripplan/domain/` | risk rules, mileage, recommendation, geometry, ETA — pure, no I/O |
@@ -126,6 +129,7 @@ compile.
 
 | File | What it holds |
 |---|---|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Deployment, backend, request-sequence, and browser-state diagrams |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | Why each non-obvious choice was made |
 | [`docs/BUGS.md`](docs/BUGS.md) | **59 defects found during implementation**, with root cause and the guard that now prevents each |
 | [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) | Measured latencies and bundle sizes — including what was *not* measured |
