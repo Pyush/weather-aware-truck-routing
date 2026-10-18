@@ -117,9 +117,9 @@ export async function streamAnalysis(
   body: TripRequestBody,
   onEvent: (event: StreamEvent) => void,
   signal?: AbortSignal,
-  baseUrl = '',
+  baseUrl = import.meta.env.VITE_API_BASE_URL ?? '',
 ): Promise<void> {
-  const response = await fetch(`${baseUrl}/api/v1/trips/analyze/stream/`, {
+  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/api/v1/trips/analyze/stream/`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -196,8 +196,8 @@ export async function streamAnalysis(
 }
 
 /** Fetch the rule configuration. The UI holds no thresholds of its own (D12). */
-export async function fetchConfig(baseUrl = ''): Promise<import('@/types/api').AppConfig> {
-  const response = await fetch(`${baseUrl}/api/v1/config/`);
+export async function fetchConfig(baseUrl = import.meta.env.VITE_API_BASE_URL ?? ''): Promise<import('@/types/api').AppConfig> {
+  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/api/v1/config/`);
   if (!response.ok) {
     throw new ApiError(response.status, {
       error: { code: 'config_unavailable', message: 'Could not load the rule configuration.' },

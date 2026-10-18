@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ApiError, streamAnalysis } from '@/lib/api';
+import { ApiError, fetchConfig, streamAnalysis } from '@/lib/api';
 
 const request = {
   origin: 'Chicago, IL',
@@ -18,6 +18,15 @@ function reply(lines: string[]): void {
 }
 
 describe('streamAnalysis', () => {
+  it('uses an external API origin without doubling its trailing slash', async () => {
+    reply(['{"type":"done","warnings":[]}\n']);
+    await streamAnalysis(request, vi.fn(), undefined, 'https://example-api.onrender.com/');
+    expect(fetch).toHaveBeenCalledWith(
+      'https://example-api.onrender.com/api/v1/trips/analyze/stream/',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
   it('decodes lines split across chunks and completes on done', async () => {
     reply(['{"type":"route","id":"r0"}\n{"type":"do', 'ne","warnings":[]}\n']);
     const events: string[] = [];
@@ -35,5 +44,13 @@ describe('streamAnalysis', () => {
   it('rejects a truncated stream with no terminal event', async () => {
     reply(['{"type":"route","id":"r0"}\n']);
     await expect(streamAnalysis(request, vi.fn())).rejects.toMatchObject({ code: 'incomplete_stream' });
+  });
+});
+
+describe('fetchConfig', () => {
+  it('uses the same external API origin as the stream', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 200 })));
+    await fetchConfig('https://example-api.onrender.com/');
+    expect(fetch).toHaveBeenCalledWith('https://example-api.onrender.com/api/v1/config/');
   });
 });

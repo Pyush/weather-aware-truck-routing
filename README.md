@@ -130,6 +130,7 @@ compile.
 | File | What it holds |
 |---|---|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Deployment, backend, request-sequence, and browser-state diagrams |
+| [`docs/DEPLOY-RENDER.md`](docs/DEPLOY-RENDER.md) | Free Render Blueprint setup and deployment checks |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | Why each non-obvious choice was made |
 | [`docs/BUGS.md`](docs/BUGS.md) | **59 defects found during implementation**, with root cause and the guard that now prevents each |
 | [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) | Measured latencies and bundle sizes — including what was *not* measured |
