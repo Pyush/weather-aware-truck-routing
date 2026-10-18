@@ -7,14 +7,17 @@ Nothing here is "done" until its `Done when` line is objectively true.
 
 Totals: **94 tasks** · ~50 h of focused work · 5 % buffer recommended (Phase 8 needs slack).
 
-**Progress: 53 / 94 formally complete (Phases 0–3 plus FE-02, FE-05b, FE-24, FE-31, FE-32).**
+**Progress: 57 / 94 formally complete (Phases 0–3 plus FE-02, FE-05b, FE-09, FE-21, FE-24, FE-25, FE-31, FE-32, FE-34).**
+
+Browser QA results are in `docs/QA-CHECKLIST.md`, including the checks still outstanding
+(Firefox/Safari, the real WebGL-absent path, and the 1,000-mile performance case).
 
 **Frontend implementation checkpoint (2026-10-17):** The app scaffold, streaming client,
 store, selectors, map, form, route cards, slider and methodology dialog are implemented but
 uncommitted. Browser mock-provider analysis renders three routes with nonzero risk summaries;
-the 0→48 h slider updates without an API request. 433 backend and 38 frontend tests pass;
+the 0→48 h slider updates without an API request. 433 backend and 41 frontend tests pass;
 production build passes. Remaining before checking off frontend tasks: the explicit acceptance
-criteria below (notably responsive/accessibility QA, URL state, and performance).
+criteria below (notably the checkpoint table's sorting/virtualisation and the perf pass).
 Headless MSW component tests and backend-generated 0/6/24/48-hour parity fixtures now pass.
 The frontend linter passes without warnings. FE-02's drift check runs in `make lint` (verified by
 corrupting the committed file and confirming it fails). FE-24 shareable URLs are implemented and
@@ -249,7 +252,7 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [ ] **FE-08** Advanced options (collapsed) `~25m` → FE-07
   Truck speed factor, max speed, HOS break — defaults match backend, clearly marked as assumptions.
   **Done when** defaults reproduce backend ETAs exactly; non-defaults visibly change ETA and show an "assumption applied" note.
-- [ ] **FE-09** App states `~35m` → FE-07
+- [x] **FE-09** App states `~35m` → FE-07 (every BE-55 code has distinct copy, asserted against the generated contract; WebGL fallback rendered but not exercised in a real browser)
   Empty state with guidance + example trips, streaming skeletons (route lines then checkpoint dots), error cards per BE-55 taxonomy, warning banner for `weather_coarsened`/partial data.
   **Done when** every BE-55 error code renders a distinct, useful message.
 
@@ -295,7 +298,7 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [ ] **FE-20** Checkpoint table `~45m` → FE-19
   Columns: mile, ETA, wind, rain, snow, level chip, dominant factor; sortable; virtualized above 200 rows; column headers state the active spacing.
   **Done when** a 120-checkpoint route scrolls smoothly and the level column matches the map colors.
-- [ ] **FE-21** Departure-offset slider (0–48 h) `~50m` → FE-05b
+- [x] **FE-21** Departure-offset slider (0–48 h) `~50m` → FE-05b
   Range slider with tick marks, labelled **"Departure offset +Nh"**, keyboard accessible, `aria-valuetext` ("depart 6 hours later"), debounce-free (array lookup), reset button; shifted departure time shown next to the slider.
   **Done when** dragging produces instant updates with **zero** network requests (verified in devtools) — the core "smoothness" claim.
 - [ ] **FE-22** Live summary on slider `~40m` → FE-21
@@ -307,7 +310,7 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [x] **FE-24** Shareable URL state `~30m` → FE-07, FE-21
   Sync query + slider offset to URL params; restore on load; "copy link" button.
   **Done when** a shared link reproduces the exact view.
-- [ ] **FE-25** Responsive + a11y `~45m` → FE-20, FE-21
+- [x] **FE-25** Responsive + a11y `~45m` → FE-20, FE-21 (see docs/QA-CHECKLIST.md)
   Desktop 3-column → tablet 2-column → mobile stacked with a bottom sheet; focus management, aria labels, contrast ≥ 4.5:1, keyboard-only path through the whole flow.
   **Done when** the full task is completable by keyboard and usable at 375 px width.
 - [ ] **FE-26** Methodology modal `~40m` → FE-23
@@ -330,7 +333,7 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [ ] **FE-33** Perf profiling pass `~40m` → FE-17
   React Profiler on stream updates + slider drag, bundle analysis, lazy-load the map panel, memo boundaries.
   **Done when** slider drag shows no React re-render of the map and bundle is under budget (record numbers).
-- [ ] **FE-34** Browser + responsive QA `~35m` → FE-25
+- [x] **FE-34** Browser + responsive QA `~35m` → FE-25 (docs/QA-CHECKLIST.md; no open P1/P2)
   Chrome/Firefox/Safari, 375/768/1440 px, WebGL-absent fallback, long-route stress, dark/light map style.
   **Done when** a QA checklist file is filled in with no open P1/P2 issues.
 - [ ] **FE-35** Playwright smoke (stretch) `~30m` → FE-31

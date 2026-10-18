@@ -114,6 +114,17 @@ export function ForecastSlider({ config }: ForecastSliderProps) {
         ))}
       </div>
 
+      {offsetHours !== 0 && (
+        <button
+          type="button"
+          className="btn btn-ghost"
+          style={{ marginTop: 6, fontSize: 11 }}
+          onClick={() => setOffset(0)}
+        >
+          Reset to the planned departure
+        </button>
+      )}
+
       {worstChanged && (
         <p
           className="muted"
@@ -139,29 +150,38 @@ export function ForecastSlider({ config }: ForecastSliderProps) {
               onClick={() => selectRoute(view.route.id)}
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'auto 1fr auto auto',
-                gap: 10,
+                gridTemplateColumns: 'minmax(0, 1fr) auto auto',
+                gridTemplateAreas: '"label risk badge" "detail risk badge"',
+                columnGap: 8,
                 alignItems: 'center',
                 textAlign: 'left',
                 borderColor: isRecommended ? 'var(--risk-low)' : 'var(--border)',
               }}
             >
-              <span className="mono" style={{ fontSize: 11 }}>
+              <span className="mono" style={{ gridArea: 'label', fontSize: 11 }}>
                 {view.route.label}
               </span>
               <span
                 className="mono dim"
-                style={{ fontSize: 11 }}
+                style={{
+                  gridArea: 'detail',
+                  fontSize: 11,
+                  // A wrapped "473 mi · 10h / 39m" reads as two values. Keep the
+                  // unit with its number and let the row truncate instead.
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
               >
                 {formatMiles(view.route.road_miles)} · {formatDuration(view.route.duration_s)}
               </span>
-              <span className="mono" style={{ fontSize: 12 }}>
+              <span className="mono" style={{ gridArea: 'risk', fontSize: 12 }}>
                 {formatAvgRisk(view.summary.avg_risk, precision)}
               </span>
               <span
                 className="risk-badge"
                 data-level={view.summary.worst_level}
-                style={{ fontSize: 10 }}
+                style={{ gridArea: 'badge', fontSize: 10, whiteSpace: 'nowrap' }}
               >
                 {view.summary.worst_level.replace('_', ' ')}
               </span>
@@ -169,6 +189,17 @@ export function ForecastSlider({ config }: ForecastSliderProps) {
           );
         })}
       </div>
+
+      <p className="visually-hidden" aria-live="polite">
+        {views
+          .map(
+            (view) =>
+              `${view.route.label}: average risk ${formatAvgRisk(view.summary.avg_risk, precision)}, worst ${
+                view.summary.worst_level.replace('_', ' ').toLowerCase()
+              }`,
+          )
+          .join('. ')}
+      </p>
 
       <p className="dim" style={{ margin: '8px 0 0', fontSize: 10 }}>
         Forecasts resolve hourly, so each checkpoint is read at the hour it is due.

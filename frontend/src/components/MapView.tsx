@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import type {
   ExpressionSpecification,
@@ -51,6 +51,7 @@ export function MapView({
   const map = useRef<MapLibreMap | null>(null);
   const ready = useRef(false);
   const fittedRoute = useRef<string | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   // Keep the latest state in a ref so layer setup can read it without being
   // torn down and rebuilt on every slider tick.
@@ -95,14 +96,25 @@ export function MapView({
   // Create the map once.
   useEffect(() => {
     if (!container.current || map.current) return;
-    const m = new maplibregl.Map({
+    // WebGL can be unavailable or blocklisted, and the MapLibre constructor
+    // throws in that case rather than degrading. Catching it keeps the route
+    // numbers usable, which is what the user came for.
+    let m: MapLibreMap;
+    try {
+      m = new maplibregl.Map({
       container: container.current,
-      style: STYLE_URL,
-      center: [-87.63, 41.88],
-      zoom: 5,
-      attributionControl: { compact: true },
-      cooperativeGestures: true,
-    });
+        style: STYLE_URL,
+        center: [-87.63, 41.88],
+        zoom: 5,
+        attributionControl: { compact: true },
+        cooperativeGestures: true,
+      });
+    } catch (cause) {
+      setMapError(
+        `The map could not start: ${cause instanceof Error ? cause.message : 'unknown error'}. The route comparison below is unaffected.`,
+      );
+      return;
+    }
     map.current = m;
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     m.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'imperial' }), 'bottom-left');
@@ -318,12 +330,34 @@ export function MapView({
   return (
     <div className="map-wrap">
       <div ref={container} style={{ position: 'absolute', inset: 0 }} />
-      <MapControls onFitAll={fitAll} onFitRoute={() => fit(selectedRouteId)} />
-      <CheckpointTooltip
-        analysis={analysis}
-        selectedRouteId={selectedRouteId ?? analysis.routes[0]?.id ?? null}
-        offsetHours={offsetHours}
-      />
+      {mapError ? (
+        // Announced, not just drawn: a screen-reader user must learn that the
+        // map is missing rather than finding an empty box.
+        <div
+          role="status"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'grid',
+            placeItems: 'center',
+            padding: 'var(--space-4)',
+            textAlign: 'center',
+          }}
+        >
+          <p className="muted" style={{ margin: 0, maxWidth: 380, fontSize: 12 }}>
+            {mapError}
+          </p>
+        </div>
+      ) : (
+        <>
+          <MapControls onFitAll={fitAll} onFitRoute={() => fit(selectedRouteId)} />
+          <CheckpointTooltip
+            analysis={analysis}
+            selectedRouteId={selectedRouteId ?? analysis.routes[0]?.id ?? null}
+            offsetHours={offsetHours}
+          />
+        </>
+      )}
     </div>
   );
 }

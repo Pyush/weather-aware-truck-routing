@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ApiError, fetchConfig, streamAnalysis } from '@/lib/api';
 import { buildUrlSearch, parseUrlState } from '@/lib/urlState';
+import { guidanceFor } from '@/lib/errorGuidance';
 import { applyRiskColors } from '@/lib/theme';
 import { requestBody, useStore } from '@/store/useStore';
 import { TripForm } from '@/components/TripForm';
+import { EmptyState } from '@/components/EmptyState';
 import { RoutePanel } from '@/components/RoutePanel';
 import { ForecastSlider } from '@/components/ForecastSlider';
 import { MethodologyModal } from '@/components/MethodologyModal';
@@ -38,9 +40,26 @@ const [copied, setCopied] = useState(false);
    */
   const closeMethodology = useCallback(() => setShowMethodology(false), []);
 
-  /** Copy the current view as a link. Falls back if the clipboard is blocked. */
+  /**
+   * Copy the current view as a link.
+   *
+   * Built from store state rather than read from the address bar: URL syncing
+   * only starts once the user arrived *via* a link, so on a fresh visit the
+   * address bar is bare and copying it would produce a link that reproduces
+   * nothing.
+   */
   const copyLink = useCallback(() => {
-    const write = navigator.clipboard?.writeText(window.location.href);
+    const store = useStore.getState();
+    const search = buildUrlSearch({
+      origin: store.origin,
+      destination: store.destination,
+      departure: store.departure,
+      loadLb: store.loadLb,
+      spacingMi: store.spacingMi,
+      offsetHours: store.offsetHours,
+    });
+    const url = `${window.location.origin}${window.location.pathname}${search ? `?${search}` : ''}`;
+    const write = navigator.clipboard?.writeText(url);
     void write?.then(
       () => setCopied(true),
       () => setCopied(false),
@@ -192,6 +211,7 @@ const [copied, setCopied] = useState(false);
           <TripForm onSubmit={submit} />
           {error && <ErrorBanner error={error} />}
           {analysis.warnings.length > 0 && <WarningList warnings={analysis.warnings} />}
+          {phase === 'idle' && <EmptyState onStart={submit} />}
           <ForecastSlider config={config} />
           <RoutePanel config={config} />
         </aside>
@@ -220,17 +240,6 @@ function ErrorBanner({
 }) {
   // Distinct copy per code: a driver can act on all of these, but only if the
   // message says what to actually do (BE-55).
-  const guidance: Record<string, string> = {
-    validation_failed: 'Check the highlighted fields and try again.',
-    location_not_found: 'Try adding a state or country, for example "Chicago, IL".',
-    no_route: 'No drivable route exists between those points.',
-    upstream_unavailable: 'A weather or routing service is unavailable. Try again shortly.',
-    upstream_timeout: 'A service took too long to answer. Try again.',
-    service_unavailable: 'All providers are down. Try again shortly.',
-    departure_out_of_range: 'Choose a departure within the next 16 days.',
-    network_error: 'The backend could not be reached. Is it running?',
-  };
-
   return (
     <div
       className="card"
@@ -239,7 +248,7 @@ function ErrorBanner({
     >
       <strong style={{ color: 'var(--risk-severe)' }}>{error.message}</strong>
       <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
-        {guidance[error.code] ?? 'Something went wrong.'}
+        {guidanceFor(error.code)}
       </p>
     </div>
   );

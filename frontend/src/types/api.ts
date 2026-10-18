@@ -94,6 +94,11 @@ export interface AppConfig {
   assumptions: Assumptions;
 }
 
+/** Every API error code with its HTTP status, from the generated contract. */
+export interface ErrorCodeMap {
+  [code: string]: number;
+}
+
 // ---------------------------------------------------------------------------
 // Analysis payloads
 // ---------------------------------------------------------------------------

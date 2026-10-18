@@ -143,6 +143,14 @@ function RouteCard({
       role="button"
       tabIndex={0}
       aria-pressed={selected}
+      aria-label={
+        `${route.label}, rank ${rank} of ${analysis.routes.length}` +
+        `${recommended ? ', recommended' : ''}. ` +
+        `${formatMiles(route.road_miles)}, ${formatDuration(route.duration_s)} drive, ` +
+        `arrive ${arrivalTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. ` +
+        `Average risk ${formatAvgRisk(summary.avg_risk, precision)}, ` +
+        `worst ${summary.worst_level.replace('_', ' ').toLowerCase()}.`
+      }
     >
       <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         <span className="dim mono" style={{ fontSize: 12 }}>

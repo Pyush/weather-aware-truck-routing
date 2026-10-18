@@ -26,6 +26,7 @@ from django.core.management.base import BaseCommand
 from tripplan.adapters.geocoding import GeocodeResult
 from tripplan.adapters.mock_weather import MockWeatherProvider
 from tripplan.adapters.routing import Route
+from tripplan.api.errors import error_codes
 from tripplan.domain.risk.enums import RiskLevel, level_catalog
 from tripplan.domain.risk.load_rules import DEFAULT_LOAD_POLICY
 from tripplan.domain.risk.miles import summarise
@@ -257,6 +258,7 @@ def render_contract() -> tuple[str, dict[str, Any]]:
                 for offset in (0, 6, 24, 48)
             },
         },
+        "error_codes": error_codes(),
         "events": [
             "meta",
             "route",

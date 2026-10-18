@@ -102,7 +102,7 @@ export function TripForm({ onSubmit }: TripFormProps) {
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 2fr)', gap: 'var(--space-3)' }}>
           <div className="field">
             <label htmlFor="departure">Departure</label>
             <input
@@ -128,6 +128,9 @@ export function TripForm({ onSubmit }: TripFormProps) {
               step={500}
               onChange={(e) => setField('loadLb', Number(e.target.value))}
               aria-invalid={Boolean(errors.loadLb)}
+              // A number input sizes to its widest legal value, which overflows a
+              // two-column grid and clips the real number to "5.".
+              style={{ width: '100%', minWidth: 0 }}
             />
             {errors.loadLb && <span className="field-error">{errors.loadLb}</span>}
           </div>

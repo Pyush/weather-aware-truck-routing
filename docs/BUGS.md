@@ -8,7 +8,7 @@ Kept because most of them were invisible to the tests that existed at the time �
 as the secret scanner: by corrupting the committed file and confirming the test fails. A guard
 that has never fired is a guess.
 
-Status: Phases 0–3 complete; frontend verification in progress. **47 defects recorded, 0 open**
+Status: Phases 0–3 complete; frontend verification in progress. **52 defects recorded, 0 open**
 (remaining QA tracked separately).
 
 ---
@@ -318,6 +318,11 @@ alternatives and the via-waypoint synthesis produced the third, correctly tagged
 | **B-45** | S3 | The generated contract carried `elapsed_ms`, so a byte-comparison drift check would have failed on every run for timing reasons alone. Zeroed that field in the fixture. | Two-build determinism test |
 | **B-46** | S2 | Submitting a new plan reset `offsetHours` to 0, so a shared link carrying `?offset=18` silently lost its departure offset on replan. Preserve and re-clamp it. | Shared-link replan test |
 | **B-47** | S2 | `parseUrlState` turned `?every=` into `spacingMi: 0`, because `Number('')` is `0` — a truncated link would have asked for "every 0 miles". Treat a blank parameter as absent. | Blank-parameter test |
+| **B-48** | S2 | "Copy link" read `window.location.href`, but URL syncing only runs once a link has been *restored* — so on a fresh visit it copied a bare URL reproducing nothing. Build the URL from store state. | Clipboard capture in browser |
+| **B-49** | S3 | A `type="number"` input sizes to its widest legal value and overflowed the two-column form grid, clipping `52000` to `5.` — a silently wrong load. Constrain the width. | Screenshot at 1000 px |
+| **B-50** | S3 | Route option rows wrapped mid-value ("473 mi · 10h / 39m"), and a `nowrap` label let the risk badge stretch to a third full-width line. Grid areas fix both. | Screenshot at 1000 px |
+| **B-51** | S3 | Route cards announced as "Option A473 mi · 10h 39m2.5NO TR" to a screen reader: adjacent spans concatenate with no separator. Gave each card an explicit `aria-label` and a live summary. | Keyboard traversal + computed labels |
+| **B-52** | S3 | `--text-dim` measured **3.93:1** against the panel background, below the WCAG AA 4.5:1 floor, and it carries most of the 10–11 px helper text. Raised to `#7b8aab` (4.90:1). | Measured contrast ratio in the browser |
 
 **Environment note.** Vite's file watcher hit `ENOSPC` (inotify limit 65,536; cannot raise it here),
 so it served stale transformed modules despite successful typechecks. Restarting with

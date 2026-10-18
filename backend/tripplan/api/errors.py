@@ -76,6 +76,28 @@ class ServiceUnavailable(ApiError):
     code = "service_unavailable"
 
 
+def error_codes() -> dict[str, int]:
+    """Return every API error code with its HTTP status.
+
+    Exported into the frontend contract so the UI can assert it has user-facing
+    copy for each one. A new subclass without UI copy would otherwise degrade
+    silently to a generic message.
+    """
+    return {
+        cls.code: cls.status_code
+        for cls in (
+            ApiError,
+            ValidationFailed,
+            LocationNotFound,
+            NoRouteAvailable,
+            DepartureOutOfRange,
+            UpstreamUnavailable,
+            UpstreamTimeout,
+            ServiceUnavailable,
+        )
+    }
+
+
 def api_exception_handler(exc: Exception, context: dict[str, object]) -> Any:
     """DRF exception hook.
 

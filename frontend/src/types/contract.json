@@ -5427,6 +5427,16 @@
       }
     }
   },
+  "error_codes": {
+    "internal_error": 500,
+    "validation_failed": 400,
+    "location_not_found": 404,
+    "no_route": 422,
+    "departure_out_of_range": 400,
+    "upstream_unavailable": 502,
+    "upstream_timeout": 504,
+    "service_unavailable": 503
+  },
   "events": [
     "meta",
     "route",

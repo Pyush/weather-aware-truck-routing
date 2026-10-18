@@ -25,7 +25,10 @@
 
   --text: #e8eefc;
   --text-muted: #9aa8c4;
-  --text-dim: #6b7a99;
+  /* 4.90:1 against --bg-raised. The previous #6b7a99 was 3.93:1, below the
+     WCAG AA 4.5:1 floor, and this token carries most of the 10-11px helper
+     text -- small text gets no allowance to go lower. */
+  --text-dim: #7b8aab;
 
   --accent: #38bdf8;
   --accent-strong: #0ea5e9;
@@ -159,6 +162,9 @@ a {
   font-weight: 600;
   color: var(--text-muted);
   letter-spacing: 0.02em;
+  /* Keep "Load (lb)" on one line; the value is short and the wrap only adds
+     a stray row in the two-column form grid. */
+  white-space: nowrap;
 }
 
 .input {
