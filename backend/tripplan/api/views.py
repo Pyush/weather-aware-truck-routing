@@ -115,7 +115,10 @@ class AnalyzeStreamView(APIView):
         try:
             validated = parse(request.data if isinstance(request.data, dict) else {})
         except ValidationFailed as exc:
-            return Response(exc.to_dict(), status=exc.status_code)
+            # This view negotiates NDJSON for successful streams, but validation
+            # happens before a stream exists. Return real JSON (including its
+            # content type), not an unrendered dict through NDJSONRenderer.
+            return JsonResponse(exc.to_dict(), status=exc.status_code)
 
         cache_key = _cache_key(validated.query)
         cached_payload = cache.get(cache_key) if _cache_enabled() else None
@@ -157,8 +160,10 @@ def _ndjson(
             yield _line({"type": "route", **route})
         for entry in cached_payload.get("checkpoints", []):
             yield _line({"type": "checkpoints", **entry})
-        for summary in cached_payload.get("summaries", []):
-            yield _line({"type": "summary", **summary})
+        for route, summary in zip(
+            cached_payload.get("routes", []), cached_payload.get("summaries", []), strict=True
+        ):
+            yield _line({"type": "summary", "route_id": route["id"], **summary})
         yield _line({"type": "recommendation", **cached_payload.get("recommendation", {})})
         yield _line(
             {

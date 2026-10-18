@@ -7,7 +7,19 @@ Nothing here is "done" until its `Done when` line is objectively true.
 
 Totals: **94 tasks** · ~50 h of focused work · 5 % buffer recommended (Phase 8 needs slack).
 
-**Progress: 48 / 94 complete (Phases 0–3 done — 429 tests, all green in 0.8 s).**
+**Progress: 53 / 94 formally complete (Phases 0–3 plus FE-02, FE-05b, FE-24, FE-31, FE-32).**
+
+**Frontend implementation checkpoint (2026-10-17):** The app scaffold, streaming client,
+store, selectors, map, form, route cards, slider and methodology dialog are implemented but
+uncommitted. Browser mock-provider analysis renders three routes with nonzero risk summaries;
+the 0→48 h slider updates without an API request. 433 backend and 38 frontend tests pass;
+production build passes. Remaining before checking off frontend tasks: the explicit acceptance
+criteria below (notably responsive/accessibility QA, URL state, and performance).
+Headless MSW component tests and backend-generated 0/6/24/48-hour parity fixtures now pass.
+The frontend linter passes without warnings. FE-02's drift check runs in `make lint` (verified by
+corrupting the committed file and confirming it fails). FE-24 shareable URLs are implemented and
+verified in the browser (restore on load, offset preserved across replan). Phase 8 deployment is
+not implemented. `ENOSPC` requires polling for the dev watcher in this environment.
 
 | Phase | Status |
 |---|---|
@@ -213,7 +225,7 @@ also surfaced the average-risk noise flaw fixed in D18.
 
 ## Phase 4 — Frontend foundation
 
-- [ ] **FE-02** Typed API contracts `~45m` → BE-53
+- [x] **FE-02** Typed API contracts `~45m` → BE-53
   Export an OpenAPI/JSON schema from Django; generate `frontend/src/types/api.ts` via a script; add a CI drift check (`tsc` fails if the committed types are stale).
   **Done when** `make gen-types` produces a clean diff and CI fails on a stale file.
 - [ ] **FE-03** NDJSON streaming client `~50m` → FE-02
@@ -225,7 +237,7 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [ ] **FE-05** Derived selectors (pure) `~45m` → FE-04
   `riskAtOffset(checkpoint, offset)`, `summaryAtOffset(route, offset)` (weighted miles + avg risk), `etaAtOffset`, `sortedCheckpoints`, `recommendationReason`. **No risk thresholds in the frontend.**
   **Done when** slider results are consistent with backend values at offset 0 (asserted in FE-31).
-- [ ] **FE-05b** Offset semantics in selectors `~25m` → FE-05
+- [x] **FE-05b** Offset semantics in selectors `~25m` → FE-05
   Offset shifts **departure**, so `eta(checkpoint, offset) = eta(checkpoint, 0) + offset` — uniform across every checkpoint and route (D13). Assert the uniformity in tests.
   **Done when** a test proves every checkpoint's ETA shifts by exactly `offset` and route totals stay consistent.
 - [ ] **FE-06** Design system + tokens `~40m` → FE-00
@@ -292,7 +304,7 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [ ] **FE-23** Recommendation banner `~30m` → FE-19
   Headline verdict + the ordered criteria that decided it + safety warnings if the best route still has NO_TRAVEL miles.
   **Done when** a route with no-travel miles is never presented as safe.
-- [ ] **FE-24** Shareable URL state `~30m` → FE-07, FE-21
+- [x] **FE-24** Shareable URL state `~30m` → FE-07, FE-21
   Sync query + slider offset to URL params; restore on load; "copy link" button.
   **Done when** a shared link reproduces the exact view.
 - [ ] **FE-25** Responsive + a11y `~45m` → FE-20, FE-21
@@ -309,10 +321,10 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [ ] **FE-30** Selector unit tests `~35m` → FE-05b
   Vitest for `riskAtOffset`, `summaryAtOffset`, weighted-mile math, ETA offset uniformity, URL param round-trip.
   **Done when** ≥ 15 meaningful cases pass, including out-of-range offsets clamping.
-- [ ] **FE-31** Component tests with MSW `~45m` → FE-03
+- [x] **FE-31** Component tests with MSW `~45m` → FE-03
   Mock the NDJSON stream; assert form → stream → cards render; slider drag updates the summary; error event renders the right card.
   **Done when** the suite runs headless in CI with no network.
-- [ ] **FE-32** Parity test vs backend `~30m` → FE-30, BE-42
+- [x] **FE-32** Parity test vs backend `~30m` → FE-30, BE-42
   Feed one recorded backend payload into the frontend selectors; assert slider offsets 0/6/24/48 match backend-computed values.
   **Done when** parity holds — proves no rule logic drifted into the UI.
 - [ ] **FE-33** Perf profiling pass `~40m` → FE-17

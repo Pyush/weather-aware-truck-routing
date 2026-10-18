@@ -67,7 +67,18 @@ STATIC_URL = "static/"
 # Third-party
 # ---------------------------------------------------------------------------
 REST_FRAMEWORK = {
-    "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    # The NDJSON renderer is what makes the streaming endpoint negotiable: DRF
+    # answers 406 to `Accept: application/x-ndjson` unless some renderer claims
+    # that media type.
+    #
+    # JSONRenderer must stay FIRST. DRF picks the first renderer whose media
+    # type matches, and `Accept: */*` matches everything -- so with NDJSON
+    # first, ordinary JSON responses would be labelled `application/x-ndjson`
+    # and DRF would reject its own output.
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+        "tripplan.api.renderers.NDJSONRenderer",
+    ],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
     "UNAUTHENTICATED_USER": None,
     "EXCEPTION_HANDLER": "tripplan.api.errors.api_exception_handler",

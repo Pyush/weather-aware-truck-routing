@@ -9,7 +9,7 @@ NPM := npm --prefix frontend
 .DEFAULT_GOAL := help
 .PHONY: help install install-backend install-frontend test test-backend test-frontend \
         test-integration lint lint-backend lint-frontend format security security-selftest \
-        dev dev-backend dev-frontend up down logs bench clean
+        gen-types check-contract dev dev-backend dev-frontend up down logs bench clean
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -34,10 +34,13 @@ install-frontend: ## Install frontend dependencies
 # Quality gates
 # ---------------------------------------------------------------------------
 
-test: test-backend ## Run all tests (frontend tests added in Phase 7)
+test: test-backend test-frontend ## Run backend and frontend tests
 
 test-backend: ## Run the backend pytest suite (unit only, no network)
 	cd backend && .venv/bin/pytest -q -m "not integration"
+
+test-frontend: ## Run the frontend Vitest suite (unit only, no network)
+	$(NPM) test
 
 test-integration: ## Run the opt-in live-API smoke tests
 	cd backend && .venv/bin/pytest -q -m integration
@@ -48,9 +51,16 @@ lint-backend: ## ruff check + format check
 	$(RUFF) check backend
 	$(RUFF) format --check backend
 
-lint-frontend: ## eslint + tsc typecheck
+lint-frontend: ## eslint + tsc typecheck + contract drift check
 	$(NPM) run lint
 	$(NPM) run typecheck
+	$(MAKE) check-contract
+
+gen-types: ## Regenerate frontend/src/types/contract.json from the backend
+	cd backend && .venv/bin/python manage.py export_contract
+
+check-contract: ## Fail if the committed contract is stale
+	cd backend && .venv/bin/python manage.py export_contract --check
 
 format: ## Auto-format everything
 	$(RUFF) check --fix backend

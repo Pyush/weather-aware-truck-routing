@@ -341,6 +341,20 @@ def test_stream_validation_error_is_a_real_status_code(client: APIClient) -> Non
     assert response.json()["error"]["code"] == "validation_failed"
 
 
+def test_ndjson_accept_negotiates_stream_but_validation_stays_json(client: APIClient) -> None:
+    """The browser requests NDJSON; a bad request must still parse as JSON."""
+    endpoint = reverse("tripplan:analyze-stream")
+    invalid = client.post(endpoint, {}, format="json", HTTP_ACCEPT="application/x-ndjson")
+    assert invalid.status_code == 400
+    assert invalid["Content-Type"].startswith("application/json")
+    assert invalid.json()["error"]["code"] == "validation_failed"
+
+    valid = client.post(endpoint, payload(), format="json", HTTP_ACCEPT="application/x-ndjson")
+    assert valid.status_code == 200
+    assert valid["Content-Type"] == "application/x-ndjson"
+    assert json.loads(next(iter(valid.streaming_content)))["type"] == "meta"
+
+
 def test_stream_reports_upstream_failure_as_an_error_event(
     client: APIClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -504,6 +518,10 @@ def test_cached_stream_replays_full_meta(client: APIClient, settings) -> None:
 
     points = next(e for e in events if e["type"] == "checkpoints")["points"]
     assert len(points[0]["hourly_risk"]) == meta["hour_window_hours"]
+    route_ids = {e["id"] for e in events if e["type"] == "route"}
+    summaries = [e for e in events if e["type"] == "summary"]
+    assert len(summaries) == len(route_ids)
+    assert {e["route_id"] for e in summaries} == route_ids
     assert events[-1]["type"] == "done"
 
 

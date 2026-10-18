@@ -4,7 +4,12 @@ Defects found during implementation, with root cause, how they were found, and t
 Kept because most of them were invisible to the tests that existed at the time — the
 "how it was found" column is the part worth reading twice.
 
-Status: Phases 0–3 complete. **32 defects recorded, 0 open.**
+**Controls that earned their keep.** The FE-02 contract drift check was verified the same way
+as the secret scanner: by corrupting the committed file and confirming the test fails. A guard
+that has never fired is a guess.
+
+Status: Phases 0–3 complete; frontend verification in progress. **47 defects recorded, 0 open**
+(remaining QA tracked separately).
 
 ---
 
@@ -291,3 +296,30 @@ tail streams in behind it. The weather leg also matched the cost model — 25 lo
 The OSRM leg independently re-confirmed D11 on a live route: the provider returned **2**
 alternatives and the via-waypoint synthesis produced the third, correctly tagged
 `osrm_via_variant`.
+
+---
+
+## Phase 4–6 — browser and streaming integration
+
+| ID | Severity | Finding and fix | Guard |
+|---|---|---|---|
+| **B-33** | S2 | A Zustand selector returned a new `{}` on each render, triggering React's maximum-update-depth error. Reused a module-level empty object. | Browser render |
+| **B-34** | S2 | MapLibre cannot parse CSS `var(--risk-low)` in paint expressions. Supply literal hex from `/config/` instead. | Browser console |
+| **B-35** | S2 | DRF rejected `Accept: application/x-ndjson` with 406; added an NDJSON renderer *after* JSON so `*/*` retains JSON. The initial reverse ordering broke 28 API tests. | Explicit Accept-header API test |
+| **B-36** | S2 | Stream `route` events precede `summary`, so selectors and the corridor dereferenced missing `route.summary` and blanked the app. Handle partial routes until the summary arrives. | Partial-stream selector and map-data tests |
+| **B-37** | S1 | Even after completion, route cards claimed `0.0 LOW` while the recommendation reported Severe miles: the store kept summaries separately but never joined them to routes. Attach each summary by `route_id`. | Event-sequence store test and browser comparison |
+| **B-38** | S2 | Validation under NDJSON negotiation returned the literal body `error` with a 400, so the browser could not parse field errors. Return a JSON response before opening the stream. | Explicit Accept-header invalid-request test |
+| **B-39** | S1 | Cached stream replay omitted `route_id` on each summary, so summaries could not join their routes. Pair cached summaries with cached route IDs. | Cached-stream replay test |
+| **B-40** | S2 | Methodology dialog was observed staying open after Close; stabilized its close callback and verified the dialog closes in the browser. | Browser close interaction |
+| **B-41** | S2 | A terminal `error` event arrived under HTTP 200 but was ignored, leaving the app in the complete state. The NDJSON client now raises a structured `ApiError`; a stream ending without `done` also fails rather than claiming success. | Mock-stream tests |
+| **B-42** | S2 | When a new analysis aborted the old one, the old callback could still mark the new analysis complete. Check the old request's abort signal before `finishStream()`. | Abort-state review |
+| **B-43** | S2 | `validate()` set `errors.destination` and then deleted it two lines later, so an empty destination silently submitted. Found by writing the component test for FE-07. | Empty-destination form test |
+| **B-44** | S3 | Vite warned that `__dirname` is unsupported under the native config loader. Switched both configs to `import.meta.dirname`. | Clean build output |
+| **B-45** | S3 | The generated contract carried `elapsed_ms`, so a byte-comparison drift check would have failed on every run for timing reasons alone. Zeroed that field in the fixture. | Two-build determinism test |
+| **B-46** | S2 | Submitting a new plan reset `offsetHours` to 0, so a shared link carrying `?offset=18` silently lost its departure offset on replan. Preserve and re-clamp it. | Shared-link replan test |
+| **B-47** | S2 | `parseUrlState` turned `?every=` into `spacingMi: 0`, because `Number('')` is `0` — a truncated link would have asked for "every 0 miles". Treat a blank parameter as absent. | Blank-parameter test |
+
+**Environment note.** Vite's file watcher hit `ENOSPC` (inotify limit 65,536; cannot raise it here),
+so it served stale transformed modules despite successful typechecks. Restarting with
+`CHOKIDAR_USEPOLLING=true` restored live-edit verification. Stale console entries were
+also misleading; each browser check now uses a fresh tab.
