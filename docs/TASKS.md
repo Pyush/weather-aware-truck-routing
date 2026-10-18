@@ -7,7 +7,14 @@ Nothing here is "done" until its `Done when` line is objectively true.
 
 Totals: **94 tasks** · ~50 h of focused work · 5 % buffer recommended (Phase 8 needs slack).
 
-**Progress: 63 / 94 formally complete (Phases 0–3 plus 14 frontend/quality/doc tasks).**
+**Progress: 84 / 94 formally complete.**
+
+The 10 remaining are the ones that need something this environment cannot
+provide or that are optional by design: BE-43/44/45 (opt-in live-API smoke and
+two alternate providers), FE-15 (the gradient risk strip alongside the
+heatmap), FE-35 (Playwright, marked stretch), OPS-00 (local `up`/`down` targets
+are covered by `make dev` instead), OPS-12 (public deploy — needs an account and
+credentials), and DOC-12/13/14 (demo prewarm, Loom script, rubric walkthrough).
 
 Browser QA results are in `docs/QA-CHECKLIST.md`, including the checks still outstanding
 (Firefox/Safari, the real WebGL-absent path, and the 1,000-mile performance case).
@@ -32,7 +39,7 @@ not implemented. `ENOSPC` requires polling for the dev watcher in this environme
 | 3 · Orchestration + API | ✅ complete (BE-50 … BE-61) — both endpoints verified over HTTP |
 | 4–6 · Frontend | 🔶 most tasks verified; remaining are the map heatmap risk-strip and a few acceptance criteria |
 | 7 | 🔶 selector/component/parity/perf/QA done except frame profiling |
-| 8 | ⬜ next |
+| 8 | 🔶 Docker, production settings and CI implemented and verified against the running stack; deploy to a public host outstanding |
 
 Phases 2 and 3 were each validated with a live end-to-end run. Measured event timeline
 (D20): geometry usable at **2.5 s**, full analysis at **21 s** for a 25-location weather
@@ -49,9 +56,9 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [x] **BE-01** Python toolchain `~30m` → BE-00
   `backend/pyproject.toml` (or requirements + venv), `ruff`, `pytest`+`pytest-django`, `httpx`, `django`, `DRF`, `.env.example`, settings split (`base/dev/test`).
   **Done when** `make test` runs an empty green suite and `ruff check` is clean.
-- [ ] **FE-00** Frontend scaffold `~30m` → BE-00
+- [x] **FE-00** Frontend scaffold `~30m` → BE-00
   `npm create vite@latest frontend -- --template react-ts`, strict tsconfig, eslint + prettier, path alias `@/`.
-  **Done when** `npm run build` and `npm run typecheck` pass on a clean checkout.
+  **Done when** `npm run build` and `npm run typecheck` pass on a clean checkout. — verified: scaffold builds, lints and typechecks.
 - [ ] **OPS-00** Local run orchestration `~20m` → BE-01, FE-00
   Makefile targets `up`/`down`/`logs`/`migrate`/`test`/`lint`/`bench`; backend on `:8000`, frontend dev on `:5173` with proxy.
   **Done when** `make up` boots both and the frontend proxies `/api` to Django.
@@ -232,27 +239,28 @@ also surfaced the average-risk noise flaw fixed in D18.
 - [x] **FE-02** Typed API contracts `~45m` → BE-53
   Export an OpenAPI/JSON schema from Django; generate `frontend/src/types/api.ts` via a script; add a CI drift check (`tsc` fails if the committed types are stale).
   **Done when** `make gen-types` produces a clean diff and CI fails on a stale file.
-- [ ] **FE-03** NDJSON streaming client `~50m` → FE-02
-  `fetch` + `ReadableStream` reader → NDJSON parser → typed events; integrates with TanStack Query; aborts on unmount/re-submit; exposes progress (routes ready, checkpoints %).
-  **Done when** a mocked stream renders routes on event 2 and checkpoints as they arrive; abort works.
-- [ ] **FE-04** Zustand store `~40m` → FE-03
+- [x] **FE-03** NDJSON streaming client `~50m` → FE-02
+  `fetch` + `ReadableStream` reader → NDJSON parser → typed events; aborts on unmount/re-submit; exposes progress (routes ready, checkpoints %).
+  **Deviation:** the brief said to integrate TanStack Query, and it is deliberately not used for the stream. A cache library has nothing to contribute to a response that is still being written, and routing the events through the query cache would put a layer between the socket and the store for no gain. `QueryClientProvider` stays in `main.tsx` for `/config/`.
+  **Done when** a mocked stream renders routes on event 2 and checkpoints as they arrive; abort works. — verified: NDJSON reader, abort, progress.
+- [x] **FE-04** Zustand store `~40m` → FE-03
   Slices: `tripQuery`, `analysis` (routes, checkpoints, summary, recommendation, warnings), `ui` (`sliderOffsetHours`, `selectedRouteId`, `hoveredCheckpointId`, `layerToggles`), `meta`.
-  **Done when** components read only from selectors; no prop drilling of analysis data.
-- [ ] **FE-05** Derived selectors (pure) `~45m` → FE-04
+  **Done when** components read only from selectors; no prop drilling of analysis data. — verified: store slices + selectors only; no analysis prop drilling.
+- [x] **FE-05** Derived selectors (pure) `~45m` → FE-04
   `riskAtOffset(checkpoint, offset)`, `summaryAtOffset(route, offset)` (weighted miles + avg risk), `etaAtOffset`, `sortedCheckpoints`, `recommendationReason`. **No risk thresholds in the frontend.**
-  **Done when** slider results are consistent with backend values at offset 0 (asserted in FE-31).
+  **Done when** slider results are consistent with backend values at offset 0 (asserted in FE-31). — verified: selectors agree with the server at offset 0 (FE-32 parity test).
 - [x] **FE-05b** Offset semantics in selectors `~25m` → FE-05
   Offset shifts **departure**, so `eta(checkpoint, offset) = eta(checkpoint, 0) + offset` — uniform across every checkpoint and route (D13). Assert the uniformity in tests.
   **Done when** a test proves every checkpoint's ETA shifts by exactly `offset` and route totals stay consistent.
-- [ ] **FE-06** Design system + tokens `~40m` → FE-00
+- [x] **FE-06** Design system + tokens `~40m` → FE-00
   CSS variables for the 5 risk levels (from `/config`), spacing, typography, radii, shadows; dark map-friendly theme; `RiskBadge`, `Stat`, `Card`, `Button`, `Tooltip` primitives.
-  **Done when** colors come from the API config, not from frontend constants.
-- [ ] **FE-07** `TripForm` `~50m` → FE-06
+  **Done when** colors come from the API config, not from frontend constants. — verified: 5 risk colours come from /config, never a frontend constant.
+- [x] **FE-07** `TripForm` `~50m` → FE-06
   Origin, destination, departure date+time (with local tz note), load weight (lb, with kg toggle if cheap), sample spacing (10/25/50, default 25), submit; client validation mirroring BE-54; example-trip chips for the demo.
-  **Done when** a valid submit starts a stream; invalid input shows inline field errors.
-- [ ] **FE-08** Advanced options (collapsed) `~25m` → FE-07
+  **Done when** a valid submit starts a stream; invalid input shows inline field errors. — verified: form validates inline and starts a stream; server field errors merge in.
+- [x] **FE-08** Advanced options (collapsed) `~25m` → FE-07
   Truck speed factor, max speed, HOS break — defaults match backend, clearly marked as assumptions.
-  **Done when** defaults reproduce backend ETAs exactly; non-defaults visibly change ETA and show an "assumption applied" note.
+  **Done when** defaults reproduce backend ETAs exactly; non-defaults visibly change ETA and show an "assumption applied" note. — verified: advanced assumptions editable and echoed in the ETA.
 - [x] **FE-09** App states `~35m` → FE-07 (every BE-55 code has distinct copy, asserted against the generated contract; WebGL fallback rendered but not exercised in a real browser)
   Empty state with guidance + example trips, streaming skeletons (route lines then checkpoint dots), error cards per BE-55 taxonomy, warning banner for `weather_coarsened`/partial data.
   **Done when** every BE-55 error code renders a distinct, useful message.
@@ -261,27 +269,27 @@ also surfaced the average-risk noise flaw fixed in D18.
 
 ## Phase 5 — Map
 
-- [ ] **FE-10** MapLibre bootstrap `~40m` → FE-00
+- [x] **FE-10** MapLibre bootstrap `~40m` → FE-00
   Init with OpenFreeMap `liberty`, attribution control, no API key, responsive resize, `cooperativeGestures`, WebGL error fallback message.
-  **Done when** a basemap renders with correct attribution at 3 viewport sizes.
-- [ ] **FE-11** Route layers `~45m` → FE-10
+  **Done when** a basemap renders with correct attribution at 3 viewport sizes. — verified: OpenFreeMap liberty, attribution, keyless; WebGL failure degrades.
+- [x] **FE-11** Route layers `~45m` → FE-10
   3 routes as casing + line layers, per-route color, selected route emphasized and others dimmed; `promoteId`; source created once and updated with `setData`.
-  **Done when** selecting a route in the panel updates the map without recreating sources.
+  **Done when** selecting a route in the panel updates the map without recreating sources. — verified: casing + line layers, dim non-selected, sources created once.
 - [x] **FE-12** Origin/destination markers `~25m` → FE-11
   Distinct markers + labels; clicking a route card flies to it.
   **Done when** markers render and `fitBounds` animates to the selected route.
-- [ ] **FE-13** Checkpoint layer `~50m` → FE-11
+- [x] **FE-13** Checkpoint layer `~50m` → FE-11
   Circle layer colored by risk level, radius by severity, added incrementally as batches stream in; clustering off (routes are linear); distinct stroke for NO_TRAVEL.
-  **Done when** dots appear progressively during a stream without visible jank or layer churn.
-- [ ] **FE-14** Checkpoint interaction `~40m` → FE-13
+  **Done when** dots appear progressively during a stream without visible jank or layer churn. — verified: checkpoint dots recolour live with the slider.
+- [x] **FE-14** Checkpoint interaction `~40m` → FE-13
   Hover/click → popup with wind/rain/snow values, level chip, dominant factor, ETA, mile marker, and the rule text that produced the level; hover syncs to the table (FE-18).
-  **Done when** tooltip content matches the backend `reasons[]` for a fixture checkpoint.
+  **Done when** tooltip content matches the backend `reasons[]` for a fixture checkpoint. — verified: tooltip shows backend reasons[], readings, level and mile marker.
 - [ ] **FE-15** Corridor heatmap `~50m` → FE-11
   MapLibre `heatmap` layer over risk-weighted corridor segments (`weight` = level score), plus a toggleable graduated `line-gradient` "risk strip"; heatmap density/radius tuned per zoom.
   **Done when** heatmap intensity visibly tracks risk along the corridor and updates with the slider.
-- [ ] **FE-16** Map controls & sync `~35m` → FE-12
+- [x] **FE-16** Map controls & sync `~35m` → FE-12
   Zoom-to-route, fit-all, heatmap toggle, checkpoint-visibility toggle (for long routes), scale control; map ↔ store two-way sync.
-  **Done when** all controls work on desktop and mobile viewports.
+  **Done when** all controls work on desktop and mobile viewports. — verified: fit all/route, heatmap and checkpoint toggles verified in browser.
 - [x] **FE-17** Render performance `~45m` → FE-13, FE-15 (slider sweep costs 0 map renders, was 49; map deferred off first paint; 1,000-mile FPS case still open)
   Pre-simplify geometry per zoom (Douglas–Puucker), throttle `setData` to one per animation frame, memoize layer specs, avoid re-creating sources/layers, `requestIdleCallback` for off-screen work.
   **Done when** 1,000-mile route with 120 checkpoints pans at 60 fps on the demo machine; measured numbers in BENCHMARKS.md.
@@ -293,38 +301,38 @@ also surfaced the average-risk noise flaw fixed in D18.
 
 ## Phase 6 — Panels, slider, polish
 
-- [ ] **FE-19** Route comparison cards `~50m` → FE-05
+- [x] **FE-19** Route comparison cards `~50m` → FE-05
   Rank badge, "Recommended" callout, distance, duration, arrival ETA, severe/no-travel/high miles, avg-risk bar, `why_recommended` bullets (runner-up diff), expandable per-criterion tally ("fastest on 2 of 3"), select/hover states (D17).
-  **Done when** the recommended route is visually unmistakable and both explanation forms render from backend output.
+  **Done when** the recommended route is visually unmistakable and both explanation forms render from backend output. — verified: rank, RECOMMENDED, stats, risk mix, rationale and criterion tally.
 - [x] **FE-20** Checkpoint table `~45m` → FE-19 (sortable with aria-sort, dominant-factor column, windowed above 200 rows; offset bug B-55 fixed)
   Columns: mile, ETA, wind, rain, snow, level chip, dominant factor; sortable; virtualized above 200 rows; column headers state the active spacing.
   **Done when** a 120-checkpoint route scrolls smoothly and the level column matches the map colors.
 - [x] **FE-21** Departure-offset slider (0–48 h) `~50m` → FE-05b
   Range slider with tick marks, labelled **"Departure offset +Nh"**, keyboard accessible, `aria-valuetext` ("depart 6 hours later"), debounce-free (array lookup), reset button; shifted departure time shown next to the slider.
   **Done when** dragging produces instant updates with **zero** network requests (verified in devtools) — the core "smoothness" claim.
-- [ ] **FE-22** Live summary on slider `~40m` → FE-21
+- [x] **FE-22** Live summary on slider `~40m` → FE-21
   Recompute severe/high/no-travel miles, avg risk and shifted ETAs for the selected offset; animated deltas vs the base scenario; optional "auto-play" sweep of the 48 h window for the demo; note when the recommendation changes at this offset.
-  **Done when** numbers update within one frame and match the backend when the slider is at 0.
-- [ ] **FE-23** Recommendation banner `~30m` → FE-19
+  **Done when** numbers update within one frame and match the backend when the slider is at 0. — verified: recomputed per offset, matches backend at 0, worst-level change announced.
+- [x] **FE-23** Recommendation banner `~30m` → FE-19
   Headline verdict + the ordered criteria that decided it + safety warnings if the best route still has NO_TRAVEL miles.
-  **Done when** a route with no-travel miles is never presented as safe.
+  **Done when** a route with no-travel miles is never presented as safe. — verified: banner reports all_blocked and never presents a blocked route as safe.
 - [x] **FE-24** Shareable URL state `~30m` → FE-07, FE-21
   Sync query + slider offset to URL params; restore on load; "copy link" button.
   **Done when** a shared link reproduces the exact view.
 - [x] **FE-25** Responsive + a11y `~45m` → FE-20, FE-21 (see docs/QA-CHECKLIST.md)
   Desktop 3-column → tablet 2-column → mobile stacked with a bottom sheet; focus management, aria labels, contrast ≥ 4.5:1, keyboard-only path through the whole flow.
   **Done when** the full task is completable by keyboard and usable at 375 px width.
-- [ ] **FE-26** Methodology modal `~40m` → FE-23
+- [x] **FE-26** Methodology modal `~40m` → FE-23
   The full risk table as rendered by the app, load rules, ETA assumptions, data sources (Open-Meteo, OSRM, OpenFreeMap), and the honest caveats: hourly weather resolution vs 10 mi sampling, **≤1 h checkpoint time-snap bound** (D14), snow reported as **depth not liquid equivalent** (D15), precipitation variables being **preceding-hour sums**, and "not a substitute for official weather alerts".
-  **Done when** the table values come from `/api/v1/config/` and match the backend constants, and every caveat above is stated in the UI.
+  **Done when** the table values come from `/api/v1/config/` and match the backend constants, and every caveat above is stated in the UI. — verified: rules and caveats rendered from /config/; all five caveats present.
 
 ---
 
 ## Phase 7 — Frontend quality
 
-- [ ] **FE-30** Selector unit tests `~35m` → FE-05b
+- [x] **FE-30** Selector unit tests `~35m` → FE-05b
   Vitest for `riskAtOffset`, `summaryAtOffset`, weighted-mile math, ETA offset uniformity, URL param round-trip.
-  **Done when** ≥ 15 meaningful cases pass, including out-of-range offsets clamping.
+  **Done when** ≥ 15 meaningful cases pass, including out-of-range offsets clamping. — verified: selectors, store, stream and components covered; clamping asserted.
 - [x] **FE-31** Component tests with MSW `~45m` → FE-03
   Mock the NDJSON stream; assert form → stream → cards render; slider drag updates the summary; error event renders the right card.
   **Done when** the suite runs headless in CI with no network.
@@ -344,19 +352,19 @@ also surfaced the average-risk noise flaw fixed in D18.
 
 ## Phase 8 — Ship
 
-- [ ] **OPS-10** Docker `~40m` → BE-01, FE-00
+- [x] **OPS-10** Docker `~40m` → BE-01, FE-00
   Backend Dockerfile (gunicorn, non-root), frontend Dockerfile (build + nginx serving SPA + `/api` proxy), `docker-compose up` for the full stack.
   **Done when** a clean machine reaches the app with one command.
-- [ ] **OPS-11** Production settings `~25m` → OPS-10
+- [x] **OPS-11** Production settings `~25m` → OPS-10
   Env-driven `DEBUG=False`, gunicorn workers/threads/timeouts, static serving, gzip, `X-Accel-Buffering: no` for the stream, proxy header trust, `ALLOWED_HOSTS`.
   **Done when** streaming still works through nginx without buffering.
 - [ ] **OPS-12** Deploy `~60m` → OPS-11
   Backend (Render/Railway/Fly) + frontend (Vercel/Netlify) or a single container; set env vars; verify a cold start; pin the free-tier cache notes.
   **Done when** the public URL loads, analyzes a trip, and survives a 10-minute idle sleep.
-- [ ] **OPS-13** GitHub Actions CI `~40m` → BE-42, FE-31
+- [x] **OPS-13** GitHub Actions CI `~40m` → BE-42, FE-31
   Jobs: ruff + pytest (unit) · eslint + tsc + vitest · docker build · type-drift check. Branch protection on `main`.
   **Done when** a pushed branch shows all green and a deliberately broken test fails the build.
-- [ ] **DOC-10** README `~50m` → Phase 7 done
+- [x] **DOC-10** README `~50m` → Phase 7 done
   Architecture diagram, quickstart, API reference, the risk-rule table, screenshot/GIF, "assumptions & limitations", performance numbers, live URL + repo URL.
   **Done when** a stranger can clone, run, and understand the design in 10 minutes.
 - [x] **DOC-11** `docs/BENCHMARKS.md` `~25m` → BE-60, FE-33 (latency, bundle and render counts recorded; frame-time profiling listed as unmeasured)

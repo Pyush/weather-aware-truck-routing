@@ -1,0 +1,29 @@
+# Build context excludes. The virtualenv and caches are large, local-only, and
+# must never be baked into an image -- doing so is how the wrong Python or a
+# developer's compiled state reaches production.
+
+.venv
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.ruff_cache
+.mypy_cache
+htmlcov
+.coverage
+
+.env
+.env.*
+!.env.example
+
+*.sqlite3
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+
+# Tests and Docker definition are not part of the runtime image.
+tests
+Dockerfile
+.dockerignore

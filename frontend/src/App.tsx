@@ -226,10 +226,13 @@ const [copied, setCopied] = useState(false);
           <RoutePanel config={config} />
         </aside>
 
-        <div className="map-wrap">
-          {/* Mounted only once there is something to draw. An empty map is a
-              1 MB download the user gets no value from; they get it as soon as
-              they ask for routes, by which point they are waiting anyway. */}
+        {/* Mounted only once there is something to draw. An empty map is a
+            1 MB download the user gets no value from; they get it as soon as
+            they ask for routes, by which point they are waiting anyway.
+
+            `MapView` renders its own `.map-wrap`; wrapping it in another one
+            gives the absolutely-positioned canvas a zero-height parent, so the
+            map silently fails to size. */}
           {analysis.routes.length > 0 ? (
             <Suspense fallback={<MapPlaceholder />}>
               <MapView
@@ -245,7 +248,6 @@ const [copied, setCopied] = useState(false);
           ) : (
             <MapPlaceholder />
           )}
-        </div>
       </div>
 
       {showMethodology && <MethodologyModal config={config} onClose={closeMethodology} />}

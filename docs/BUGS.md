@@ -13,7 +13,14 @@ the prop threading made it report 49 renders instead of 0.
 render claim was asserted in a docstring rather than measured, and the worker bug only appears
 in a production bundle. "It works on the dev server" is not the same claim as "it works".
 
-Status: Phases 0–3 complete; frontend verification in progress. **55 defects recorded, 0 open**
+**Then running the container stack found four more (B-56…B-59).** All four would have shipped
+as "the app is broken in production" with no local signal: a zero-height map, an https redirect
+loop, an nginx crash loop, and gunicorn unable to write its state file. Not one of them is a
+logic error, and not one of them would have been caught by another unit test. They were found
+only by `docker compose up` and looking at what came back.
+
+Status: Phases 0–8 implemented and verified against the running stack.
+**59 defects recorded, 0 open**
 (remaining QA tracked separately).
 
 ---
@@ -331,6 +338,10 @@ alternatives and the via-waypoint synthesis produced the third, correctly tagged
 | **B-53** | S1 | **The claimed slider smoothness was false.** `offsetHours` was passed to `MapView` as a prop, so each of the 49 offset values re-rendered the component holding the WebGL context — 49 renders, not 0. `App` no longer subscribes to the offset; `MapView` subscribes imperatively and repaints via `setData`. | Render-count test, verified to fail at 49 when the prop threading is reintroduced |
 | **B-54** | S1 | **Production build could not render a map.** MapLibre resolves its worker relative to its own module; Vite rewrites that module into `/assets/maplibre-<hash>.js`, so the worker URL 404s and the SPA fallback returns HTML, failing MIME checks. Invisible in dev, where pre-bundling is excluded for MapLibre. Bundle the worker explicitly with `?worker&url` and `setWorkerUrl`. | `vite preview` on the production build: worker loads, canvas renders, console clean |
 | **B-55** | S1 | **The checkpoint table contradicted the map.** It read `point.risk.level`, the level at the *planned* departure, so every level stayed frozen at offset 0 while the map, the route cards and the slider all moved. The same mile of road was reported at two different risk levels. Read the level through `riskAtOffset` like every other consumer. | Table-vs-offset test, verified to fail when reverted to the base level |
+| **B-56** | S1 | **The map was invisible in production — zero-height container.** Wrapping `MapView` in a second `.map-wrap` for `Suspense` gave the absolutely-positioned canvas a parent with no height, so the map sized to 300 px of nothing. No error, no console message: the canvas simply existed and drew nothing. | Canvas bounding box (646×300 vs 646×802) in the container build |
+| **B-57** | S1 | **Every request 301'd to a URL nothing served.** `SECURE_SSL_REDIRECT` defaulted to `true`, but the bundled nginx terminates plain HTTP, so every request — and the container healthcheck — was redirected to https. Default it to `false` and enable it only where a terminator actually speaks https. | `/api/v1/health/` through nginx returned 301; 200 after the fix |
+| **B-58** | S2 | **nginx crash-looped with "host not found in upstream".** It resolves `proxy_pass` hostnames at config load, so starting before the backend was ready killed it permanently. Resolve per request against Docker's embedded DNS instead. | Container reached a steady `Up (healthy)` state |
+| **B-59** | S2 | **gunicorn could not write its control file**: `Permission denied: '/app/.gunicorn'` on every boot, because the non-root user had a read-only working directory. Give it a directory it owns. | Container logs clean on start |
 
 **Environment note.** Vite's file watcher hit `ENOSPC` (inotify limit 65,536; cannot raise it here),
 so it served stale transformed modules despite successful typechecks. Restarting with

@@ -1,0 +1,24 @@
+# Build context excludes. Everything here is either regenerated inside the
+# image or local-only state; sending it just slows the build and risks baking a
+# developer's machine into a layer.
+
+node_modules
+dist
+coverage
+.vite
+*.log
+
+# Local env and secrets. The image reads these at *runtime*, never at build.
+.env
+.env.*
+!.env.example
+
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+
+# Test and QA artefacts are not part of a runtime image.
+docs
+*.md

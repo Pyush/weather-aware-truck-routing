@@ -1,0 +1,52 @@
+# Full stack: `docker compose up --build`.
+#
+# One command reaches the app on http://localhost:5173. Both services run
+# production settings -- there is no development mode here, because "it works
+# in dev" is not what this is meant to prove.
+
+services:
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      # Override in a .env file for anything real. This value is a placeholder
+      # that satisfies the startup guard; it is not a secret.
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-compose-dev-placeholder-change-me}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      # This stack terminates plain HTTP, so an https redirect would send every
+      # request to a URL nothing serves. See backend/config/settings/prod.py.
+      DJANGO_SECURE_SSL_REDIRECT: "false"
+      # nginx proxies /api from the same origin, so no CORS origins are needed.
+      DJANGO_CORS_ALLOWED_ORIGINS: ""
+      CACHE_BACKEND: ${CACHE_BACKEND:-locmem}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      WEATHER_PROVIDER: ${WEATHER_PROVIDER:-mock}
+      GEOCODER_PROVIDER: ${GEOCODER_PROVIDER:-open_meteo}
+      ROUTING_PROVIDER: ${ROUTING_PROVIDER:-osrm}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Optional but recommended: with `locmem` each gunicorn worker keeps its own
+  # cache, so the second worker misses on every request the first one warmed.
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save "" --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
