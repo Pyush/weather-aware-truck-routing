@@ -22,11 +22,8 @@ services:
         value: "8000"
       - key: DJANGO_SECRET_KEY
         generateValue: true
-      - key: DJANGO_ALLOWED_HOSTS
-        fromService:
-          type: web
-          name: weather-aware-truck-routing-api
-          envVarKey: RENDER_EXTERNAL_HOSTNAME
+      # prod.py reads RENDER_EXTERNAL_HOSTNAME at runtime. A Blueprint
+      # self-reference can be empty during initial provisioning.
       - key: DJANGO_CORS_ALLOWED_ORIGINS
         fromService:
           type: web

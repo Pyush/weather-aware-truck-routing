@@ -5,8 +5,9 @@ Docker web service and a free Vite static site. It does **not** provision Redis
 or Postgres. The app has no database; its optional cache is in-process here.
 Render assigns both services HTTPS `onrender.com` URLs. The Blueprint passes the
 API URL to the Vite build, and allows only the static site's origin through
-Django CORS. No API keys or secrets belong in Git; Render generates the Django
-secret key.
+Django CORS. Django reads the API's public hostname from Render's runtime
+environment for `ALLOWED_HOSTS`. No API keys or secrets belong in Git; Render
+generates the Django secret key.
 
 ## Set up
 
@@ -29,7 +30,7 @@ secret key.
 | Setting | Render value | Why |
 |---|---|---|
 | `VITE_API_BASE_URL` | API service's `RENDER_EXTERNAL_URL` | Browser sends config and NDJSON requests to the API, not to the static CDN. |
-| `DJANGO_ALLOWED_HOSTS` | API service's `RENDER_EXTERNAL_HOSTNAME` | Accepts only the public API hostname. Add any custom API hostname if you later configure one. |
+| `RENDER_EXTERNAL_HOSTNAME` | Set automatically by Render at runtime | Production settings add this exact hostname to Django's allowed hosts. Add custom API hostnames with `DJANGO_ALLOWED_HOSTS` if needed. Do not create a Blueprint self-reference: it can be empty on first provisioning. |
 | `DJANGO_CORS_ALLOWED_ORIGINS` | Static service's `RENDER_EXTERNAL_URL` | Permits the frontend's cross-origin JSON POST and its preflight; do not use `*`. Add custom frontend origins explicitly. |
 | `DJANGO_SECRET_KEY` | Render-generated | Required by production settings; do not commit it. |
 | `WEATHER_PROVIDER` | `mock` | Fast and deterministic for a demo. Switch to `open_meteo` for live forecasts after checking service latency and provider usage. |
@@ -61,5 +62,7 @@ If the browser reports a CORS error, compare its `Origin` header against the
 API service's `DJANGO_CORS_ALLOWED_ORIGINS`; both must be exact HTTPS origins
 without trailing paths or slashes. If a request hits the static site instead of
 the API, check the static service's build-time `VITE_API_BASE_URL` and redeploy
-it. If the API returns `DisallowedHost`, check `DJANGO_ALLOWED_HOSTS` against
-the hostname in the request URL.
+it. If the API returns `DisallowedHost`, check its runtime
+`RENDER_EXTERNAL_HOSTNAME` against the hostname in the request URL; as an
+immediate dashboard workaround, set `DJANGO_ALLOWED_HOSTS` to the exact API
+hostname (no `https://` or trailing slash) and redeploy.

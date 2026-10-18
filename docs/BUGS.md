@@ -20,7 +20,7 @@ logic error, and not one of them would have been caught by another unit test. Th
 only by `docker compose up` and looking at what came back.
 
 Status: Phases 0–8 implemented and verified against the running stack.
-**66 defects recorded, 0 open** — plus 4 dropped/deferred by explicit decision
+**67 defects recorded, 0 open** — plus 4 dropped/deferred by explicit decision
 (BE-44, BE-45, FE-15 strip legibility, and the public deploy).
 (remaining QA tracked separately).
 
@@ -398,6 +398,13 @@ The interaction and visibility effects ran before MapLibre's `load` event, retur
 Track style readiness in state and rerun those effects (plus the initial fit and config
 colour refresh) after load. | Mocked delayed-load test asserts click selection and
 pre-load hidden heatmap/checkpoint settings after `load` |
+| **B-67** | S2 | **Render API could not pass its health check.** The Blueprint's
+`DJANGO_ALLOWED_HOSTS` self-reference was empty during initial provisioning, so
+Django rejected Render's public host with HTTP 400 on every health probe. Production
+settings now append Render's built-in `RENDER_EXTERNAL_HOSTNAME` at runtime instead
+of relying on an initial Blueprint self-reference; explicit custom hosts remain
+supported. | Production-settings subprocess test accepts the Render host and
+rejects an unrelated one; reported deployment logs show the failing host |
 
 **On the guards.** Both controls here were verified by making them fail, which
 is the only way to know a control works: the network guard by planting a test

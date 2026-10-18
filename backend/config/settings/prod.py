@@ -49,6 +49,14 @@ SECRET_KEY = _SECRET
 
 DEBUG = False
 
+# Render exposes its public hostname at runtime. A Blueprint self-reference to
+# that variable can be empty when the service is first created, leaving health
+# checks stuck at 400 even though Render itself knows the hostname. Read the
+# runtime value directly; keep explicit DJANGO_ALLOWED_HOSTS for custom domains.
+_RENDER_HOST = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()
+if _RENDER_HOST and _RENDER_HOST not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS = [*ALLOWED_HOSTS, _RENDER_HOST]
+
 # A wildcard host header is how host-header injection works; require an explicit
 # list rather than defaulting to "*" the way Django's scaffold does.
 if not ALLOWED_HOSTS:  # pragma: no cover - guarded by the check below
