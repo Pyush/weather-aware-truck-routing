@@ -20,7 +20,7 @@ logic error, and not one of them would have been caught by another unit test. Th
 only by `docker compose up` and looking at what came back.
 
 Status: Phases 0–8 implemented and verified against the running stack.
-**65 defects recorded, 0 open** — plus 4 dropped/deferred by explicit decision
+**66 defects recorded, 0 open** — plus 4 dropped/deferred by explicit decision
 (BE-44, BE-45, FE-15 strip legibility, and the public deploy).
 (remaining QA tracked separately).
 
@@ -392,6 +392,12 @@ out after ~27 rows and every row beyond it is unreachable -- the table looks lik
 simply ends. Only latent above 200 rows, which is why no normal route ever showed it.
 Empty spacer rows now restore the full height. | `before + visible + after === total` is
 asserted at the top, middle and bottom of a 500-row table |
+| **B-66** | S2 | **Map clicks and initial layer toggles did not work after a slow style load.**
+The interaction and visibility effects ran before MapLibre's `load` event, returned on
+`ready.current === false`, and never retried because changing a ref does not rerender.
+Track style readiness in state and rerun those effects (plus the initial fit and config
+colour refresh) after load. | Mocked delayed-load test asserts click selection and
+pre-load hidden heatmap/checkpoint settings after `load` |
 
 **On the guards.** Both controls here were verified by making them fail, which
 is the only way to know a control works: the network guard by planting a test

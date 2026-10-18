@@ -50,6 +50,9 @@ export function MapView({
   const container = useRef<HTMLDivElement | null>(null);
   const map = useRef<MapLibreMap | null>(null);
   const ready = useRef(false);
+  // A ref guards imperative source updates; state retries effects that ran
+  // before the asynchronous style load (listeners and layer visibility).
+  const [mapReady, setMapReady] = useState(false);
   const fittedRoute = useRef<string | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
   // Subscribed rather than passed as a prop: a layer toggle is local UI state,
@@ -89,7 +92,7 @@ export function MapView({
 
     geoSource('routes')?.setData(buildRoutesCollection(a));
     geoSource('risk-strip')?.setData(buildRiskStripCollection(route));
-    updateRiskStrip(m, bundle, route, offset, latest.current.config, showRiskStrip);
+    updateRiskStrip(m, bundle, route, offset, latest.current.config, latest.current.showRiskStrip);
     geoSource('endpoints')?.setData(buildEndpointsCollection(a));
     geoSource('checkpoints')?.setData(buildCheckpointsCollection(bundle, route, offset));
     geoSource('corridor')?.setData(buildCorridorCollection(bundle, route, offset));
@@ -100,7 +103,7 @@ export function MapView({
     m.setPaintProperty('route-line', 'line-opacity', ['case', isActive, 1, 0.5]);
     m.setPaintProperty('route-line', 'line-width', ['case', isActive, 4.5, 2.5]);
     m.setPaintProperty('checkpoints', 'circle-opacity', activeId ? 0.95 : 0);
-  }, [geoSource, showRiskStrip]);
+  }, [geoSource]);
 
   // Create the map once.
   useEffect(() => {
@@ -248,7 +251,7 @@ export function MapView({
 
       ready.current = true;
       syncSources();
-      fitAll();
+      setMapReady(true);
     });
 
     m.on('error', (event) => {
@@ -316,7 +319,7 @@ export function MapView({
     if (analysis.routes.length > 0 && fittedRoute.current === null && fit(null)) {
       fittedRoute.current = 'all';
     }
-  }, [analysis.routes.length, fit]);
+  }, [analysis.routes.length, fit, mapReady]);
 
   // Layer visibility toggles.
   useEffect(() => {
@@ -328,7 +331,7 @@ export function MapView({
     if (m.getLayer('checkpoints')) {
       m.setLayoutProperty('checkpoints', 'visibility', showCheckpoints ? 'visible' : 'none');
     }
-  }, [showHeatmap, showCheckpoints]);
+  }, [showHeatmap, showCheckpoints, mapReady]);
 
   // The map may finish loading before /config/ returns. CSS tokens update when
   // it does, but MapLibre paint expressions need an explicit refresh with the
@@ -338,7 +341,7 @@ export function MapView({
     if (config && m && ready.current && m.getLayer('checkpoints')) {
       m.setPaintProperty('checkpoints', 'circle-color', levelColorExpression(config));
     }
-  }, [config]);
+  }, [config, mapReady]);
 
   // --- interaction ---------------------------------------------------------
 
@@ -378,7 +381,7 @@ export function MapView({
       m.off('mousemove', onMove);
       m.off('click', onClick);
     };
-  }, [fit]);
+  }, [fit, mapReady]);
 
   return (
     <div className="map-wrap">
